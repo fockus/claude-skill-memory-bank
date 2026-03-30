@@ -1,0 +1,10 @@
+.installed-manifest.json
+*.backup.*
+.DS_Store
+.env
+*.env
+*.pem
+*.key
+*.secret
+__pycache__/
+*.pyc
