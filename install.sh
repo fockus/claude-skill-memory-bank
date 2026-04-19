@@ -37,7 +37,7 @@ install_file() {
   mkdir -p "$(dirname "$2")"
   backup_if_exists "$2"
   cp "$1" "$2"
-  [[ "$2" == *.sh ]] && chmod +x "$2"
+  [[ "$2" == *.sh || "$2" == *.py ]] && chmod +x "$2"
   INSTALLED_FILES+=("$2")
 }
 
@@ -98,6 +98,7 @@ mkdir -p "$MB_DEST"/{agents,scripts,references}
 install_file "$SKILL_DIR/SKILL.md" "$MB_DEST/SKILL.md"
 [ -f "$SKILL_DIR/VERSION" ] && install_file "$SKILL_DIR/VERSION" "$MB_DEST/VERSION"
 for f in "$SKILL_DIR"/scripts/*.sh; do [ -f "$f" ] && install_file "$f" "$MB_DEST/scripts/$(basename "$f")"; done
+for f in "$SKILL_DIR"/scripts/*.py; do [ -f "$f" ] && install_file "$f" "$MB_DEST/scripts/$(basename "$f")"; done
 for f in "$SKILL_DIR"/references/*.md; do [ -f "$f" ] && install_file "$f" "$MB_DEST/references/$(basename "$f")"; done
 echo -e "  ${GREEN}✓${NC} SKILL.md + VERSION + scripts + references"
 

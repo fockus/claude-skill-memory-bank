@@ -2,6 +2,7 @@
 source = .
 include =
     settings/merge-hooks.py
+    scripts/mb-index-json.py
 
 [report]
 show_missing = True

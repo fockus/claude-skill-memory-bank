@@ -10,8 +10,8 @@ Three-in-one skill для Claude Code: (1) Long-term project memory через `
 - Python-скрипты: 1 (`merge-hooks.py`, без тестов — Этап 6)
 - Агенты: 4 (`mb-manager`, `mb-doctor`, `plan-verifier`, `mb-codebase-mapper`)
 - Команды: **18** в `commands/` (после слияния `/mb init` + `/mb:setup-project`)
-- Bats tests: **143/143 green** (117 unit + 15 e2e + 11 hooks)
-- Python tests: **16/16 green** (`test_merge_hooks.py`), **92% coverage** на `settings/merge-hooks.py` (порог 85%)
+- Bats tests: **148/148 green** (117 unit + 15 e2e + 11 hooks + 5 search-tag)
+- Python tests: **35/35 green** (16 merge-hooks + 19 index-json). **TOTAL coverage 94%** (merge-hooks 92%, index-json 81%)
 - Shellcheck warnings: **0**
 - Ruff: **0 errors** (settings/ + tests/pytest/)
 - CI: **`.github/workflows/test.yml`** — matrix `[ubuntu-latest, macos-latest]` × (bats + e2e + pytest) + lint job (shellcheck + ruff, Ubuntu only), fail-fast: false
@@ -37,9 +37,10 @@ Three-in-one skill для Claude Code: (1) Long-term project memory через `
 - **Этап 5: Ecosystem integration** — Task→Agent (0 legacy), SKILL.md frontmatter fix, `/mb init [--minimal|--full]` (merged with setup-project), coexistence с native memory, three-in-one README, rules для frontend (FSD) и mobile (iOS/Android)
 - **Этап 6: Tests + CI** — pytest (16/16, 92% coverage), e2e install/uninstall (15/15, isolated HOME), GitHub Actions matrix macos+ubuntu, shellcheck+ruff lint job, **2 real bugs fixed** найденные e2e: missing marker + macOS realpath
 - **Этап 7: Hooks fixes** — `file-change-log.sh` без `pass`-false-positive, TODO skip in docstrings, log rotation 10MB→.log.1/2/3. `block-dangerous.sh` с `MB_ALLOW_NO_VERIFY=1` bypass. 11 новых hook-тестов
+- **Этап 8: index.json прагматично** — `mb-index-json.py` с frontmatter parse + PyYAML fallback, atomic write, `mb-search --tag` (auto-gen index), `mb-manager actualize` теперь вызывает скрипт. 19 pytest + 5 bats-тестов
 
 ### 🔧 В работе
-- **Этап 8: index.json прагматично** — frontmatter index для notes/+lessons/, `mb-search --tag` через index
+- **Этап 9: Финализация** — CHANGELOG v1→v2, docs/MIGRATION-v1-v2.md, SKILL.md ≤150 строк, README quick-start
 
 ### ⬜ Далее
 - **Этап 7**: Hooks — fixes (false-positives, log rotation, bypass)

@@ -179,3 +179,31 @@
 - **Итог**: 11 hook-тестов green, total bats **143/143 green** (+11 от Этапа 6). Shellcheck 0 warnings
 - **YAGNI skip**: `merge-hooks.py` дедупликация через id-маркер — пропущено. Существующий content-based dedup уже работает (Этап 6: 16 тестов, 92% coverage). Whitespace-normalize/id-маркер — оверинжиниринг без реального use-case
 - Следующий шаг: Этап 8 (index.json прагматично — frontmatter index для notes/+lessons/, `mb-search --tag` через index для O(tagged) вместо grep-всего)
+
+### Этап 8: index.json — прагматично
+- **TDD red** — `tests/pytest/test_index_json.py`, 19 тестов (11 из плана + 8 coverage-driving). TDD red: 11 skipped
+- **TDD green** — `scripts/mb-index-json.py`:
+  - PyYAML opt-in, fallback `_simple_yaml_parse` (простой `key: value` / `key: [a,b]` парсер) для окружений без PyYAML
+  - Frontmatter parse defaults: `type: note`, `tags: []`, `importance: None`. Malformed YAML → defaults без crash
+  - Tag as string (`tags: solo`) wrapped в list
+  - `_summary()` — первые 2 non-empty non-heading строки body
+  - Lessons parsing: `^###\s+(L-\d+)[:\-\s]+(.+?)$` regex
+  - Atomic write: `tempfile.mkstemp` в mb_path + `os.replace`, при BaseException — unlink tmp + re-raise (test `test_atomic_rewrite_preserves_on_failure` проверяет это через `monkeypatch` на `os.replace`)
+  - CLI: `mb-index-json.py <mb_path>`, exit 1 для missing path или no args
+- **Интеграция**:
+  - `agents/mb-manager.md` action `actualize` — переписана секция index.json: вместо ручного Write (который был неправильный) — вызов `python3 mb-index-json.py`. Задокументирована shape и гарантии (atomic, fallback YAML)
+  - `scripts/mb-search.sh` — расширен `--tag <tag>` флагом:
+    - Приоритет: первый аргумент `--tag` → filter mode, иначе legacy grep
+    - Читает `index.json` через python3 inline (без jq-зависимости)
+    - Auto-gen index если отсутствует (вызывает `mb-index-json.py` из той же директории)
+    - Head -20 содержимого для каждого matched note
+  - `tests/bats/test_search_tag.bats` — 5 тестов: finds, empty-result, auto-gen, multi-match, legacy-grep unchanged
+  - `install.sh`:
+    - Копирует `scripts/*.py` (помимо `.sh`)
+    - `install_file()` — chmod +x для `.py` и `.sh`
+- **Финальные метрики**:
+  - bats **148/148 green** (117 unit + 15 e2e + 11 hooks + 5 search-tag)
+  - pytest **35/35 green** (16 merge-hooks + 19 index-json)
+  - TOTAL coverage: **94%** (merge-hooks 92%, index-json 81%). TOTAL выше cov-fail-under=85%
+  - Shellcheck: **0 warnings**. Ruff: **all passed**
+- Следующий шаг: Этап 9 (финализация — CHANGELOG, docs/MIGRATION-v1-v2.md, SKILL.md ≤150 строк, README quick-start)

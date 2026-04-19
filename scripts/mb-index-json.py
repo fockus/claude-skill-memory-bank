@@ -1,0 +1,180 @@
+#!/usr/bin/env python3
+"""Build .memory-bank/index.json — pragmatic frontmatter index.
+
+Usage:
+    mb-index-json.py <mb_path>
+
+Scans <mb_path>/notes/ for markdown files with YAML frontmatter
+(``type``, ``tags``, ``importance``) plus a summary (first 2 non-empty
+body lines after the frontmatter), and parses <mb_path>/lessons.md for
+``### L-NNN: Title`` entries. Writes ``<mb_path>/index.json`` atomically
+(tmp file + os.replace).
+
+Shape::
+
+    {
+      "notes":   [{"path","type","tags","importance","summary"}, ...],
+      "lessons": [{"id","title"}, ...],
+      "generated_at": "ISO8601 UTC"
+    }
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import sys
+import tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", re.DOTALL)
+LESSON_RE = re.compile(r"^###\s+(L-\d+)[:\-\s]+(.+?)\s*$", re.MULTILINE)
+
+
+def _parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
+    """Return (metadata, body). If parse fails → ({}, original text)."""
+    m = FRONTMATTER_RE.match(text)
+    if not m:
+        return {}, text
+    raw, body = m.group(1), m.group(2)
+    try:
+        import yaml  # noqa: PLC0415
+    except ImportError:
+        meta = _simple_yaml_parse(raw)
+    else:
+        try:
+            meta = yaml.safe_load(raw) or {}
+            if not isinstance(meta, dict):
+                meta = {}
+        except Exception:  # noqa: BLE001 — malformed frontmatter → defaults
+            meta = _simple_yaml_parse(raw)
+    return meta, body
+
+
+def _simple_yaml_parse(raw: str) -> dict[str, Any]:
+    """Tiny fallback YAML: handles `key: value` and `key: [a, b]`.
+
+    Not full YAML — good enough for well-formed frontmatter when PyYAML
+    is unavailable or full parse fails.
+    """
+    result: dict[str, Any] = {}
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        key, value = key.strip(), value.strip()
+        if not key:
+            continue
+        if value.startswith("[") and value.endswith("]"):
+            inner = value[1:-1].strip()
+            if not inner:
+                result[key] = []
+            else:
+                result[key] = [v.strip().strip("\"'") for v in inner.split(",")]
+        elif value:
+            result[key] = value.strip("\"'")
+    return result
+
+
+def _summary(body: str, max_lines: int = 2) -> str:
+    lines: list[str] = []
+    for raw in body.splitlines():
+        stripped = raw.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("#"):
+            continue
+        lines.append(stripped)
+        if len(lines) >= max_lines:
+            break
+    return " ".join(lines)
+
+
+def _index_notes(mb_path: Path) -> list[dict[str, Any]]:
+    notes_dir = mb_path / "notes"
+    if not notes_dir.is_dir():
+        return []
+
+    entries: list[dict[str, Any]] = []
+    for note in sorted(notes_dir.rglob("*.md")):
+        try:
+            text = note.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+
+        meta, body = _parse_frontmatter(text)
+        tags = meta.get("tags") or []
+        if isinstance(tags, str):
+            tags = [tags]
+
+        rel = note.relative_to(mb_path).as_posix()
+        entries.append(
+            {
+                "path": rel,
+                "type": meta.get("type") or "note",
+                "tags": list(tags),
+                "importance": meta.get("importance"),
+                "summary": _summary(body),
+            }
+        )
+    return entries
+
+
+def _index_lessons(mb_path: Path) -> list[dict[str, str]]:
+    lessons_file = mb_path / "lessons.md"
+    if not lessons_file.is_file():
+        return []
+
+    text = lessons_file.read_text(encoding="utf-8")
+    return [
+        {"id": m.group(1), "title": m.group(2).strip()}
+        for m in LESSON_RE.finditer(text)
+    ]
+
+
+def build_index(mb_path_str: str) -> dict[str, Any]:
+    """Scan mb_path, write index.json atomically, return the index data."""
+    mb_path = Path(mb_path_str)
+    if not mb_path.is_dir():
+        raise FileNotFoundError(f"Memory Bank path not found: {mb_path}")
+
+    data = {
+        "notes": _index_notes(mb_path),
+        "lessons": _index_lessons(mb_path),
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+
+    target = mb_path / "index.json"
+    tmp_fd, tmp_path = tempfile.mkstemp(
+        dir=str(mb_path), prefix=".index.json.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False, sort_keys=False)
+        os.replace(tmp_path, target)
+    except BaseException:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
+
+    return data
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) != 2:
+        print(f"Usage: {argv[0]} <mb_path>", file=sys.stderr)
+        return 1
+    try:
+        build_index(argv[1])
+    except FileNotFoundError as e:
+        print(f"[error] {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

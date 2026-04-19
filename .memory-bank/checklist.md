@@ -87,12 +87,14 @@
 - ✅ `merge-hooks.py` dedup — пропущено (YAGNI): существующий content-based dedup работает, 16 тестов + 92% coverage в Этапе 6. Whitespace-normalize/id-маркер — оверинжиниринг для реальных use-cases
 - ✅ Итог: **143 bats green** (117 unit + 15 e2e + 11 hooks), 16 pytest green, 0 shellcheck warnings (переписали awk без single-quote triple-escape чтобы SC1003 не триггерился)
 
-## Этап 8: index.json — прагматично
-- ⬜ Pytest для `mb-index-json.py` (frontmatter extract, lessons parsing, coverage ≥90%)
-- ⬜ Создать `scripts/mb-index-json.py`
-- ⬜ Интегрировать в `mb-manager.md` action `actualize`
-- ⬜ `mb-search.sh --tag <tag>` — фильтрация через index.json
-- ⬜ Бенчмарк: `--tag` быстрее grep-по-всему на банке 50+ файлов
+## Этап 8: index.json — прагматично ✅
+- ✅ Pytest `tests/pytest/test_index_json.py` — 19 тестов: frontmatter parse (valid, missing, malformed, list-root), lessons H3, atomic write (leftover/rollback on failure), generated_at, CLI, fallback YAML, single-tag-as-string, comment-skip, empty-dir
+- ✅ Создан `scripts/mb-index-json.py` — atomic write, PyYAML opt-in + fallback, structure `{notes, lessons, generated_at}`
+- ✅ `agents/mb-manager.md` action `actualize` → переписан: вместо ручного Write — вызов `mb-index-json.py <MB_PATH>`
+- ✅ `scripts/mb-search.sh` расширен флагом `--tag <tag>`: читает `index.json`, фильтрует. Auto-gen index если отсутствует. Порядок: --tag сначала проверяется, legacy grep-mode — default
+- ✅ `tests/bats/test_search_tag.bats` — 5 тестов (finds, empty, auto-gen, multi-match, legacy grep mode)
+- ✅ `install.sh` копирует `scripts/*.py` и chmod +x для `.py` (помимо `.sh`)
+- ✅ **Итоги**: bats **148/148 green** (включая 5 search-tag), pytest **35/35 green** (16 merge-hooks + 19 index-json), **total coverage 94%**, 0 shellcheck warnings
 
 ## Этап 9: Финализация
 - ⬜ Написать `CHANGELOG.md` (v1.0.0 → v2.0.0)

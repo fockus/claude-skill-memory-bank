@@ -230,19 +230,29 @@ H-NNN: <текст>
 6. **BACKLOG.md** — добавь идею (HIGH/LOW) или ADR если было архитектурное решение
 7. **plan.md** — обнови фокус если сдвинулись приоритеты
 
-8. **index.json** — ПЕРЕСОЗДАЙ structured index для semantic search:
-   - Просканируй все файлы в `notes/` — извлеки frontmatter (type, tags, importance) и первые 2 строки содержимого как summary
-   - Для файлов без frontmatter: type="note", tags=[] (извлеки из имени файла), importance="medium"
-   - Просканируй `lessons.md` — каждый `###` заголовок = отдельная запись с id (L-NNN), извлеки tags из содержимого
-   - Запиши результат в `{MB_PATH}/index.json` в формате:
-     ```json
-     {
-       "version": 1,
-       "updated": "YYYY-MM-DDTHH:MM:SS",
-       "notes": [{"file": "notes/...", "type": "...", "tags": [...], "importance": "...", "summary": "..."}],
-       "lessons": [{"id": "L-001", "tags": [...], "summary": "..."}]
-     }
-     ```
+8. **index.json** — пересоздай через скрипт (не руками):
+
+   ```bash
+   python3 ~/.claude/skills/memory-bank/scripts/mb-index-json.py <MB_PATH>
+   ```
+
+   Скрипт атомарно пишет `<MB_PATH>/index.json` со структурой:
+
+   ```json
+   {
+     "notes":   [{"path","type","tags","importance","summary"}, ...],
+     "lessons": [{"id": "L-NNN", "title": "..."}, ...],
+     "generated_at": "YYYY-MM-DDTHH:MM:SSZ"
+   }
+   ```
+
+   Скрипт:
+   - Сканирует `notes/**.md` — извлекает YAML frontmatter (`type`, `tags`, `importance`) + первые 2 non-empty non-heading строки как `summary`. Без frontmatter → defaults (`type: note`, `tags: []`).
+   - Парсит `lessons.md` по `^### L-NNN:` маркерам.
+   - Использует PyYAML если установлен, иначе fallback на простой парсер.
+   - Atomic write (tmp + `os.replace`) — никогда не оставляет corrupted index.json.
+
+   Не вызывай Write на `index.json` вручную.
 
 **Правила:**
 - Обновляй ТОЛЬКО файлы где есть что менять. Не трогай файл без причины.
