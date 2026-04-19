@@ -155,12 +155,19 @@ bash ~/.claude/skills/memory-bank/scripts/mb-index.sh
 1. Создай файл плана:
 ```bash
 bash ~/.claude/skills/memory-bank/scripts/mb-plan.sh <type> "<topic>"
+# → выводит путь к созданному файлу, например:
+# .memory-bank/plans/2026-04-19_refactor_skill-v2.md
 ```
 2. **Сам заполни план** по правилам из `~/.claude/skills/memory-bank/SKILL.md` (секция "Правила создания планов"):
    - Контекст: проблема, причина, ожидаемый результат
-   - Этапы: каждый с DoD по SMART, тестирование (TDD)
+   - Этапы: каждый с DoD по SMART, тестирование (TDD). Используй маркеры `<!-- mb-stage:N -->` перед каждым `### Этап N: <name>` — они нужны для автосинхронизации.
    - Риски и mitigation
    - Gate: критерий успеха
+3. Запусти синхронизацию с checklist.md + plan.md:
+```bash
+bash ~/.claude/skills/memory-bank/scripts/mb-plan-sync.sh <путь к плану>
+```
+   Скрипт добавит отсутствующие секции `## Этап N: <name>` в checklist.md и обновит блок `<!-- mb-active-plan -->` в plan.md. Идемпотентно — можно повторять при правке плана.
 
 Если type не указан — спроси пользователя. Допустимые: feature, fix, refactor, experiment.
 

@@ -6,6 +6,10 @@
 
 ## Active plan
 
+<!-- mb-active-plan -->
+**Active plan:** `plans/2026-04-19_refactor_skill-v2.md` — refactor — skill-v2
+<!-- /mb-active-plan -->
+
 **`plans/2026-04-19_refactor_skill-v2.md`** — главный план рефактора (10 этапов).
 
 ## Ближайшие шаги

@@ -43,14 +43,16 @@
 - ✅ Updated install.sh, uninstall.sh, README.md — всё ссылается на `mb-codebase-mapper`
 - ✅ Idempotent by design: агент использует Write tool, который перезаписывает (не append)
 
-## Этап 4: Автоматизация consistency-chain
-- ⬜ Bats-тесты для `mb-plan-sync.sh` (creation, modification, idempotent)
-- ⬜ Создать `scripts/mb-plan-sync.sh` — парсит план, обновляет 4 файла
-- ⬜ Bats-тесты для `mb-plan-done.sh`
-- ⬜ Создать `scripts/mb-plan-done.sh` — переносит в done/, closes checklist, updates STATUS
-- ⬜ Ввести маркеры `<!-- mb-stage:N -->` в шаблон плана
-- ⬜ Обновить `/mb plan` → авто-вызов `mb-plan-sync.sh`
-- ⬜ Обновить `mb-doctor` — фикс через `mb-plan-sync.sh`
+## Этап 4: Автоматизация consistency-chain ✅
+- ✅ Bats-тесты `test_plan_sync.bats` — 18 тестов (11 sync + 7 done), TDD red-first
+- ✅ Создан `scripts/mb-plan-sync.sh` — парсер `<!-- mb-stage:N -->` (+ fallback regex), append отсутствующих секций в checklist, update Active plan блока в plan.md
+- ✅ Создан `scripts/mb-plan-done.sh` — `⬜→✅` в секциях плана, `mv` в plans/done/, очистка Active plan блока
+- ✅ Маркеры `<!-- mb-stage:N -->` уже были в шаблоне `scripts/mb-plan.sh` (Этап 1) — задокументированы в `/mb plan`
+- ✅ Обновлён `/mb plan` в `commands/mb.md` — явная инструкция запускать `mb-plan-sync.sh` после создания
+- ✅ Обновлён `agents/mb-doctor.md` — фикс через `mb-plan-sync.sh`/`mb-plan-done.sh` приоритетно, Edit только для семантических рассинхронов
+- ✅ Идемпотентность подтверждена тестом (двойной запуск sync → 0 diff)
+- ✅ Smoke-test на реальном плане репо: 10 этапов распарсены, Active plan блок создан в plan.md
+- ✅ Shellcheck 0 warnings, bats 117/117 green (+18 новых)
 
 ## Этап 5: Ecosystem integration
 - ⬜ `SKILL.md`: убрать `user-invocable: false`, переписать description

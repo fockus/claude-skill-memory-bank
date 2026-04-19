@@ -101,3 +101,25 @@
 - Shellcheck: 0 warnings
 - **Устранено**: пункт #1 из аудита (orphan codebase-mapper). `.planning/codebase/` refs больше нет в skill-коде (только 1 legitimate reference в `codebase/map-codebase.md` — GSD command template, не skill-файл)
 - Следующий шаг: Этап 4 (`mb-plan-sync.sh` — автоматизация consistency-chain)
+
+### Этап 4: Автоматизация consistency-chain
+- **TDD red**: `tests/bats/test_plan_sync.bats` — 18 тестов (11 sync + 7 done), начальный прогон 18 skipped
+- **TDD green**: создан `scripts/mb-plan-sync.sh` (5.7K, 120 строк):
+  - Парсер `<!-- mb-stage:N -->` → следующая `### Этап N: <name>` строка (awk)
+  - Fallback: если маркеров нет — regex-парсинг `### Этап N:` напрямую (exit code 42 сигнализирует fallback)
+  - Checklist: append только отсутствующих секций `## Этап N: <name>` (идемпотентно, существующие не ломаются)
+  - Plan.md: замена блока `<!-- mb-active-plan --> ... <!-- /mb-active-plan -->` на `**Active plan:** \`plans/<basename>\` — <title>`
+  - Авто-создание маркеров, если их нет (insert после `## Active plan`)
+- **TDD green**: создан `scripts/mb-plan-done.sh` (4.6K, 130 строк):
+  - Парсер этапов — идентичный sync (общий контракт)
+  - Для каждого этапа N: awk-диапазон `## Этап N:` → следующая `## ` → `⬜ → ✅`
+  - Guard: файл должен лежать в `<mb>/plans/` не в `done/` (exit 3 иначе)
+  - `mv <plan> <mb>/plans/done/<basename>` + очистка Active plan блока
+- **Финальный прогон**: 18/18 green. Total bats: **117/117** (+18)
+- **Интеграция**:
+  - `commands/mb.md` → `/mb plan` теперь инструктирует: 1) `mb-plan.sh` → 2) заполнить план → 3) `mb-plan-sync.sh`
+  - `agents/mb-doctor.md` → Шаг 4 исправления: приоритет `mb-plan-sync.sh`/`mb-plan-done.sh` над Edit. Semantic inconsistencies по-прежнему через Edit
+- **Smoke-test на реальном плане**: `mb-plan-sync.sh .memory-bank/plans/2026-04-19_refactor_skill-v2.md` → `stages=10 added=0` (идемпотентно — все секции уже есть). Active plan блок автоматически создан в `plan.md`
+- **Shellcheck**: 0 warnings (включая оба новых скрипта)
+- install.sh копирует `scripts/*.sh` → новые скрипты подхватятся автоматически
+- Следующий шаг: Этап 5 (Ecosystem integration — Task→Agent, SKILL.md frontmatter, coexistence с native memory, merge `/mb init` + `/mb:setup-project`)

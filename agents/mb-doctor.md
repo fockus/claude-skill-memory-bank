@@ -89,7 +89,30 @@
 
 ### Шаг 4: Исправь найденные проблемы
 
-Для каждой INCONSISTENCY:
+**Приоритет: автоматизация через `mb-plan-sync.sh`.**
+
+Для рассинхрона plan ↔ checklist ↔ plan.md — сначала попробуй фикс через скрипт:
+
+```bash
+# Для каждого активного плана в plans/ (не в done/):
+bash ~/.claude/skills/memory-bank/scripts/mb-plan-sync.sh <путь к плану>
+
+# Для планов, которые завершены (все DoD ✅ в checklist):
+bash ~/.claude/skills/memory-bank/scripts/mb-plan-done.sh <путь к плану>
+```
+
+`mb-plan-sync.sh` идемпотентно:
+- добавит отсутствующие секции `## Этап N: <name>` в checklist.md
+- обновит блок `<!-- mb-active-plan -->` в plan.md
+
+`mb-plan-done.sh`:
+- закроет `- ⬜` → `- ✅` в секциях плана в checklist
+- переместит файл в plans/done/
+- очистит Active plan блок в plan.md
+
+Только то, что скрипт не может исправить (семантические рассинхроны, STATUS.md-метрики, BACKLOG, устаревшие ссылки), — правь через Edit. Логируй что именно.
+
+Для оставшихся INCONSISTENCY:
 1. Определи какой файл является "source of truth" (приоритет: checklist.md > plan.md > STATUS.md > BACKLOG.md)
 2. Исправь рассинхронизированный файл через Edit
 3. Логируй что исправлено

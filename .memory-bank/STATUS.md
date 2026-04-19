@@ -6,17 +6,18 @@
 Долговременная проектная память для Claude Code. Skill обеспечивает сохранение контекста между сессиями через `.memory-bank/`. Рефактор v2 делает skill language-agnostic, добавляет тесты/CI, интегрирует `mb-codebase-mapper`, устраняет дублирование и хардкод.
 
 ## Ключевые метрики
-- Shell-скрипты: 9 (`_lib.sh`, `mb-metrics.sh` + 5 refactored + 2 hook)
+- Shell-скрипты: **11** (`_lib.sh`, `mb-metrics.sh`, `mb-plan-sync.sh`, `mb-plan-done.sh` + 5 refactored + 2 hook)
 - Python-скрипты: 1 (`merge-hooks.py`, без тестов — Этап 6)
-- Агенты: 4 (`mb-manager`, `mb-doctor`, `plan-verifier`, `mb-codebase-mapper` — все MB-native)
-- Команды: 19 в `commands/` (`/mb` теперь с подкомандой `map`)
-- Bats tests: **99/99 green** (`test_lib.bats` 56 + `test_metrics.bats` 30 + `test_context_integration.bats` 7 + `test_upgrade.bats` 6)
+- Агенты: 4 (`mb-manager`, `mb-doctor` (теперь использует `mb-plan-sync.sh`), `plan-verifier`, `mb-codebase-mapper`)
+- Команды: 19 в `commands/` (`/mb plan` теперь авто-sync через `mb-plan-sync.sh`)
+- Bats tests: **117/117 green** (+18 новых в `test_plan_sync.bats`: 11 sync + 7 done)
 - Python tests: 0 (Этап 6-8)
 - Shellcheck warnings: **0** (с `-x --source-path=SCRIPTDIR`)
 - CI: отсутствует (Этап 6)
 - Fixtures: 12 стеков (python, go, rust, node, java, kotlin, swift, cpp, ruby, php, csharp, elixir + multi + unknown)
 - Hardcoded `pytest`/`ruff`/`taskloom` в operational code: **0**
-- Orphan-агенты: **0** (`codebase-mapper` → `mb-codebase-mapper`)
+- Orphan-агенты: **0**
+- Consistency-chain: plan↔checklist↔plan.md автоматизировано через `mb-plan-sync.sh`/`mb-plan-done.sh`
 
 ## Roadmap
 
@@ -29,12 +30,12 @@
 - **Этап 2.1: Java/Kotlin/Swift/C++** — +20 bats-тестов, 4 новых fixture-стека, коммит `69f9422`
 - **Этап 2.2: Ruby/PHP/C#/Elixir** — +20 bats-тестов, 4 новых fixture-стека, коммит `4ad08aa`
 - **Этап 3: mb-codebase-mapper** — orphan агент адаптирован (316 vs 770 строк), `/mb map` команда, интеграция в `/mb context --deep`
+- **Этап 4: Автоматизация consistency-chain** — `mb-plan-sync.sh` + `mb-plan-done.sh`, 18 bats-тестов, интеграция в `/mb plan` и `mb-doctor`
 
 ### 🔧 В работе
-- **Этап 4: Автоматизация consistency-chain** — `mb-plan-sync.sh` для синхронизации plan↔checklist↔STATUS
+- **Этап 5: Ecosystem integration** — Task→Agent, SKILL.md frontmatter, coexistence с native memory, merge init
 
 ### ⬜ Далее
-- **Этап 4**: Автоматизация consistency-chain (plan-sync)
 - **Этап 5**: Ecosystem integration (Agent tool, native memory coexistence, merge init)
 - **Этап 6**: Tests + CI (bats, pytest, GitHub Actions)
 - **Этап 7**: Hooks — fixes (false-positives, log rotation, bypass)
