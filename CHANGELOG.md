@@ -2,6 +2,49 @@
 
 Все значимые изменения документируются здесь. Формат — [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), версионирование — [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] — 2026-04-20
+
+Knowledge-reach release: cold-start через JSONL-импорт, code graph для 6 языков, tags normalization через controlled vocabulary.
+
+### Added
+
+- **`/mb import --project <path> [--since] [--apply]`** (`scripts/mb-import.py`) — bootstrap Memory Bank из Claude Code транскриптов (`~/.claude/projects/<slug>/*.jsonl`). Извлекает daily-grouped `progress.md` секции и arch-discussion notes (≥3 consecutive assistant messages >1K chars). Dedup SHA256(timestamp + first 500 chars), resume через `.import-state.json`. PII auto-wrap (email + API-key → `<private>`) интегрирован с v2.1 Stage 3. `--dry-run` default.
+- **`/mb graph [--apply] [src_root]`** (`scripts/mb-codegraph.py`) — code graph для Python (stdlib `ast`, always-on) + Go / JavaScript / TypeScript / Rust / Java (через tree-sitter, opt-in). Nodes = module/function/class, edges = import/call/inherit. Output: `codebase/graph.json` (JSON Lines, grep/jq friendly) + `codebase/god-nodes.md` (top-20 by degree). SHA256 incremental cache per-file. `HAS_TREE_SITTER` флаг обеспечивает graceful degrade без grammars. Skipped dirs: `.venv`, `node_modules`, `__pycache__`, `.git`, `target`, `dist`, `build`.
+- **`/mb tags [--apply] [--auto-merge]`** (`scripts/mb-tags-normalize.sh`) — Levenshtein-based synonym detection + merge через controlled vocabulary. Distance ≤2 detection, ≤1 для `--auto-merge`. Vocabulary в `.memory-bank/tags-vocabulary.md` (user-editable) → fallback на `references/tags-vocabulary.md` (35 default tags). Exit 2 если найдены unknown tags (drift signal).
+- **`references/tags-vocabulary.md`** — template с 35 default тегами (Core: arch/auth/bug/perf/refactor/test/...; Process: debug/review/post-mortem/adr/spike; Workflow: blocked/todo/wip/imported/discussion).
+- **`mb-index-json.py`** — авто-kebab-case для тегов: `FooBar → foo-bar`, `AUTH → auth`, `someThing → some-thing`. Dedup preserving order. Source files не трогаются — только index.
+
+### Changed
+
+- **`mb-codegraph.py`** — Python-only v1 расширен tree-sitter adapter для 5 новых языков. Same node/edge schema. Lazy parser loading per language via `_TS_PARSERS` cache.
+- **`commands/mb.md`** — секции `/mb import`, `/mb graph`, `/mb tags` с полными примерами, dogfood-outputs, ограничениями.
+- **`install.sh`** — печатает hint для tree-sitter extras.
+
+### Tests
+
+- pytest: **96** (было 44 после v2.1) — +17 test_import, +21 test_codegraph (Python), +14 test_codegraph_ts (tree-sitter).
+- bats: **208** (было 194) — +14 test_tags_normalize.
+- shellcheck: 0 warnings. ruff: all passed.
+
+### Gate v2.2 — passed ✅
+
+1. ✅ `/mb import` на реальном JSONL (2573 events) — **0.127s** (target ≤30s).
+2. ✅ `mb-codegraph.py` на `scripts/` — **0.068s** для 60 nodes + 487 edges (target ≤30s).
+3. ✅ Tags normalization: `sqlite_vec → sqlite-vec` auto-merged distance=1, 2 notes rewritten. Unknown tag → exit 2 drift signal works.
+4. ✅ Full regression: 96 pytest + 208 bats + ruff + shellcheck clean.
+5. ✅ VERSION 2.2.0, CHANGELOG updated.
+
+### ADR pivots
+
+- **ADR-006 обновлён (Stage 6.5):** изначально tree-sitter был deferred opt-in. После feedback пользователя ("часто работаю на Node/Go") — реализовано в v2.2, с graceful degrade при отсутствии grammars. Python path остался zero-dep. См. BACKLOG (Stage 6.5 shipped entry).
+
+### Deferred to v3.x backlog
+
+- Haiku-powered compression для `/mb import` summaries (сейчас deterministic first+last chars).
+- Debug-session detection в `/mb import` для `lessons.md`.
+- Type inference в `/mb graph` (edges сейчас name-based, не различают модули с одноимёнными функциями).
+- tree-sitter grammars для C/C++/Ruby/PHP/Kotlin/Swift (добавить по запросу через `_TS_LANG_CONFIG`).
+
 ## [2.1.0] — 2026-04-20
 
 Hardening release: auto-capture при забытом `/mb done`, detection drift без AI, защита PII в заметках, status-based decay для старых планов и заметок.

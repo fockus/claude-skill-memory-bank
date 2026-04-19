@@ -20,16 +20,17 @@ Three-in-one skill для Claude Code: (1) Long-term project memory через `
 - Language-agnostic (12 стеков), cross-platform CI, TDD-covered
 - Three-in-one: MB + RULES + dev toolkit
 
-### ⬜ v2.1 — Auto-capture + hardening (текущая фаза: Gate v2.1)
+### ✅ v2.1 — Auto-capture + hardening (released 2026-04-20, tag v2.1.0)
 - ✅ **Этап 1:** Auto-capture через SessionEnd hook (lock-файл, `MB_AUTO_CAPTURE` флаг)
 - ✅ **Этап 2:** Drift checkers без AI (`mb-drift.sh`, 8 deterministic чекеров)
 - ✅ **Этап 3:** PII markers `<private>...</private>` (exclude из index, REDACTED при search)
-- ✅ **Этап 4:** Compaction decay (`/mb compact`, status-based: age + done-signal required, active plans protected)
+- ✅ **Этап 4:** Compaction decay (`/mb compact`, status-based: age + done-signal)
 
-### ⬜ v2.2 — Knowledge reach
-- **Этап 5:** Import from Claude Code JSONL (`~/.claude/projects/*.jsonl` → bootstrap MB)
-- **Этап 6:** Tree-sitter code graph (AST → graph.json, god-nodes, wiki, incremental)
-- **Этап 7:** Tags normalization (closed vocabulary, Levenshtein consolidation)
+### ✅ v2.2 — Knowledge reach (текущая фаза: Gate v2.2)
+- ✅ **Этап 5:** `/mb import` из Claude Code JSONL (progress + notes + PII auto-wrap, SHA256 dedup)
+- ✅ **Этап 6:** `/mb graph` Python stdlib `ast` (0 deps, функции/классы/imports/calls/inherit)
+- ✅ **Этап 6.5:** Tree-sitter adapter — Go/JS/TS/Rust/Java opt-in через pip
+- ✅ **Этап 7:** `/mb tags` Levenshtein normalize + controlled vocabulary + kebab-case
 
 ### ⬜ v3.0 — Public release
 - **Этап 8:** Cross-agent output (Cursor, Windsurf, Cline, Kilo, OpenCode, Pi Code = [pi-coding-agent](https://github.com/badlogic/pi-mono))
