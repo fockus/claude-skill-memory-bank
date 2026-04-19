@@ -128,6 +128,8 @@ def _index_notes(mb_path: Path) -> list[dict[str, Any]]:
         clean_body, has_private = _strip_private(body)
 
         rel = note.relative_to(mb_path).as_posix()
+        # notes/archive/... entries получают archived: True (opt-in через --include-archived)
+        archived = rel.startswith("notes/archive/")
         entries.append(
             {
                 "path": rel,
@@ -136,6 +138,7 @@ def _index_notes(mb_path: Path) -> list[dict[str, Any]]:
                 "importance": meta.get("importance"),
                 "summary": _summary(clean_body),
                 "has_private": has_private,
+                "archived": archived,
             }
         )
     return entries

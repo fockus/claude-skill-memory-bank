@@ -20,11 +20,11 @@ Three-in-one skill для Claude Code: (1) Long-term project memory через `
 - Language-agnostic (12 стеков), cross-platform CI, TDD-covered
 - Three-in-one: MB + RULES + dev toolkit
 
-### ⬜ v2.1 — Auto-capture + hardening (текущая фаза)
-- **Этап 1:** Auto-capture через SessionEnd hook (lock-файл, Haiku, `MB_AUTO_CAPTURE` флаг)
-- **Этап 2:** Drift checkers без AI (`mb-drift.sh`, 8 deterministic чекеров)
-- **Этап 3:** PII markers `<private>...</private>` (exclude из index, REDACTED при search)
-- **Этап 4:** Compaction decay (`/mb compact`, plans>60d → BACKLOG, notes low>90d → archive)
+### ⬜ v2.1 — Auto-capture + hardening (текущая фаза: Gate v2.1)
+- ✅ **Этап 1:** Auto-capture через SessionEnd hook (lock-файл, `MB_AUTO_CAPTURE` флаг)
+- ✅ **Этап 2:** Drift checkers без AI (`mb-drift.sh`, 8 deterministic чекеров)
+- ✅ **Этап 3:** PII markers `<private>...</private>` (exclude из index, REDACTED при search)
+- ✅ **Этап 4:** Compaction decay (`/mb compact`, status-based: age + done-signal required, active plans protected)
 
 ### ⬜ v2.2 — Knowledge reach
 - **Этап 5:** Import from Claude Code JSONL (`~/.claude/projects/*.jsonl` → bootstrap MB)

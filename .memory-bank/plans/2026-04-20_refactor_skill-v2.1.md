@@ -146,42 +146,55 @@
 <!-- mb-stage:4 -->
 ### Этап 4: Compaction decay `/mb compact` (v2.1)
 
+**Корректировка (2026-04-20):** план архивируется только если **статус = done** (явный сигнал завершённости). Одной только давности недостаточно — старый план может быть всё ещё актуальным (long-running feature). Критерий "done" берём из 3 источников (OR):
+1. Файл уже физически в `plans/done/` (перемещён `mb-plan-done.sh`) — primary signal
+2. В `checklist.md` строка с путём плана содержит `✅` или `[x]`
+3. В `STATUS.md` или `progress.md` есть запись вида `план ... завершён|done|closed|shipped` с ссылкой на план
+
+Если план активный (не done) — **НЕ ТРОГАТЬ** даже при mtime >180 дней. Для note'ов основной сигнал — `importance: low` + нет активных референсов.
+
 **Что сделать:**
 - Создать `scripts/mb-compact.sh`:
-  - Planы в `plans/done/` с mtime >60 дней → компрессия через `mb-manager` (Haiku) в 1 строку в `BACKLOG.md` секция `## Archived plans` (формат: `- YYYY-MM-DD: <type> — <topic> → <outcome summary> (was: plans/done/<file>.md)`) → delete файл
-  - Заметки в `notes/` с `importance: low` в frontmatter И mtime >90 дней И не упомянуты в любом active файле (`grep -r` по core files) → move в `notes/archive/` + компрессия body в 3-строчный summary
-  - `index.json` расширить: entries из archive получают `archived: true` (все ещё findable, но не в core context)
+  - **Plans:** кандидаты — файлы в `plans/done/**/*.md` ИЛИ `plans/*.md` помеченные как done в checklist/STATUS. Если file в `plans/done/` + mtime >60 дней → компрессия через Haiku (`mb-manager`) в 1 строку `BACKLOG.md` секция `## Archived plans` (формат: `- YYYY-MM-DD: <type> — <topic> → <outcome summary> (was: plans/done/<file>.md)`) → delete file
+  - **Active plans (не в done/):** пропускать всегда, даже >180 дней. Вместо этого — warning "plan <file> старше 180 дней, но не done — проверь актуальность"
+  - **Notes:** `notes/*.md` с `importance: low` И mtime >90 дней И нет референсов в `plan.md`/`STATUS.md`/`checklist.md`/`RESEARCH.md` → move в `notes/archive/` + сжать body в 3-строчный summary
+  - `index.json` расширить: archived entries получают `archived: true` (findable через `--include-archived`, исключены из default)
 - Команда `/mb compact` в `commands/mb.md`:
-  - `/mb compact --dry-run` (default) — показывает что будет сжато
+  - `/mb compact --dry-run` (default) — показывает что будет сжато + reasoning per candidate ("✓ archive: reason=done_in_checklist + mtime=65d")
   - `/mb compact --apply` — выполняет
 - Интеграция в `/mb done`: раз в 7 дней (check mtime `.memory-bank/.last-compact`) автоматически запускать dry-run и показывать user prompt "X plans, Y notes ready for compact, run /mb compact?"
 
 **Тестирование (TDD):**
-- `tests/bats/test_compact.bats` (≥12 тестов):
-  - plan <60 дней → не трогать
-  - plan =61 день → компрессия + BACKLOG entry + delete file
+- `tests/bats/test_compact.bats` (≥15 тестов):
+  - plan в `plans/done/` <60 дней → не трогать (age too low)
+  - plan в `plans/done/` =61 день → компрессия + BACKLOG entry + delete
+  - plan в `plans/` (active) даже >180 дней → **НЕ трогать** + warning "старый но не done"
+  - plan отмечен `✅` в checklist.md + mtime >60d → считается done → компрессия
+  - plan отмечен `⬜` в checklist.md + mtime >180d → **НЕ трогать** (active)
+  - plan в `plans/` и в progress.md запись "план X завершён" + mtime >60d → считается done → компрессия
   - low-importance note >90d → archived
   - medium-importance note >90d → не тронуто
-  - note упомянута в `plan.md` → не тронуто (safety-net)
-  - `--dry-run` → 0 file changes, только stdout summary
-  - double run `--apply` → idempotent (уже archived не триггерится)
+  - note упомянута в `plan.md` → не тронуто (safety-net) даже если low+>90d
+  - `--dry-run` → 0 file changes, stdout reasoning
+  - double run `--apply` → idempotent
   - archived entries в index.json имеют `archived: true`
-  - `mb-search.sh --include-archived` находит archived (opt-in)
-  - default search НЕ находит archived
+  - default `mb-search` НЕ находит archived
   - `.last-compact` timestamp обновляется после `--apply`
   - broken frontmatter note → skip с warning, не блокирует batch
 
 **DoD (SMART):**
-- [ ] `scripts/mb-compact.sh` создан, ≤250 строк, shellcheck 0 warnings
-- [ ] bats 12+/12+ green
-- [ ] `commands/mb.md` содержит `/mb compact` с examples
+- [ ] `scripts/mb-compact.sh` создан, ≤300 строк, shellcheck 0 warnings
+- [ ] bats 15+/15+ green
+- [ ] `commands/mb.md` содержит `/mb compact` с examples + описание status-based логики
 - [ ] `index.json` schema расширен `archived: bool` (пример в `references/metadata.md`)
-- [ ] `/mb done` интеграция: раз в неделю prompt пользователю (через stdout в `mb-context.sh`)
-- [ ] Dogfood: создать note с `importance: low` + artificial mtime >90d → verify archival
-- [ ] Safety: рукой создать note с референсом в `plan.md` → verify что НЕ archive-ится
+- [ ] `/mb done` интеграция: раз в неделю prompt через stdout в `mb-context.sh`
+- [ ] Dogfood: создать note с `importance: low` + artificial mtime >90d + done-signal → verify archival
+- [ ] Safety #1: создать active plan с >180d mtime в `plans/` → verify **НЕ** archive-ится
+- [ ] Safety #2: создать note с референсом в `plan.md` → verify **НЕ** archive-ится
 
 **Риски:**
-- LLM compression (Haiku) может потерять важные факты → mitigation: сохранять ссылку на исходник в BACKLOG (`was: plans/done/<file>.md`) И файл УДАЛЯТЬ только в `--apply`, `--dry-run` только prints. Плюс git history всегда сохраняет.
+- LLM compression (Haiku) может потерять факты → mitigation: сохранять ссылку на исходник в BACKLOG (`was: plans/done/<file>.md`), файл УДАЛЯТЬ только в `--apply`. Плюс git history.
+- Ложное срабатывание "done detection" на старом плане → mitigation: требовать ≥2 signals (в `plans/done/` + checklist ✅) или явный пометки в STATUS
 
 ---
 

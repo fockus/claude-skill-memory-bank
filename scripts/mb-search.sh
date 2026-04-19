@@ -18,15 +18,16 @@ set -euo pipefail
 # shellcheck source=_lib.sh
 source "$(dirname "$0")/_lib.sh"
 
-# ═══ Parse --show-private flag ═══
+# ═══ Parse flags ═══
 SHOW_PRIVATE=0
+INCLUDE_ARCHIVED=0
 ARGS=()
 for arg in "$@"; do
-  if [ "$arg" = "--show-private" ]; then
-    SHOW_PRIVATE=1
-  else
-    ARGS+=("$arg")
-  fi
+  case "$arg" in
+    --show-private)     SHOW_PRIVATE=1 ;;
+    --include-archived) INCLUDE_ARCHIVED=1 ;;
+    *)                  ARGS+=("$arg") ;;
+  esac
 done
 
 if [ "$SHOW_PRIVATE" -eq 1 ] && [ "${MB_SHOW_PRIVATE:-0}" != "1" ]; then
@@ -97,11 +98,14 @@ if [ "${1:-}" = "--tag" ]; then
     exit 1
   fi
 
-  matches=$(TAG="$TAG" INDEX_PATH="$INDEX" python3 -c "
+  matches=$(TAG="$TAG" INDEX_PATH="$INDEX" INCLUDE_ARCHIVED="$INCLUDE_ARCHIVED" python3 -c "
 import json, os
 tag = os.environ['TAG']
+include_archived = os.environ.get('INCLUDE_ARCHIVED') == '1'
 with open(os.environ['INDEX_PATH']) as f: data = json.load(f)
 for n in data.get('notes', []):
+    if not include_archived and n.get('archived'):
+        continue
     if tag in (n.get('tags') or []):
         print(n['path'])
 ")
@@ -130,22 +134,35 @@ if [[ ! -d "$MB_PATH" ]]; then
 fi
 
 if [ "$SHOW_PRIVATE" -eq 1 ]; then
-  # Полный вывод (user явно подтвердил через MB_SHOW_PRIVATE=1)
+  # Полный вывод (user явно подтвердил через MB_SHOW_PRIVATE=1).
+  # notes/archive/ по-прежнему исключаются без --include-archived.
+  EXCLUDE_ARCHIVE=$([ "$INCLUDE_ARCHIVED" -eq 1 ] && echo "" || echo "notes/archive")
   if command -v rg >/dev/null 2>&1; then
-    rg --color=never -n -i --type md --heading "$QUERY" "$MB_PATH" 2>/dev/null \
-      || echo "Ничего не найдено по запросу: $QUERY"
+    if [ -n "$EXCLUDE_ARCHIVE" ]; then
+      rg --color=never -n -i --type md --heading -g '!notes/archive/**' "$QUERY" "$MB_PATH" 2>/dev/null \
+        || echo "Ничего не найдено по запросу: $QUERY"
+    else
+      rg --color=never -n -i --type md --heading "$QUERY" "$MB_PATH" 2>/dev/null \
+        || echo "Ничего не найдено по запросу: $QUERY"
+    fi
   else
-    grep -rn -i --include="*.md" "$QUERY" "$MB_PATH" 2>/dev/null \
-      || echo "Ничего не найдено по запросу: $QUERY"
+    if [ -n "$EXCLUDE_ARCHIVE" ]; then
+      grep -rn -i --include="*.md" --exclude-dir="archive" "$QUERY" "$MB_PATH" 2>/dev/null \
+        || echo "Ничего не найдено по запросу: $QUERY"
+    else
+      grep -rn -i --include="*.md" "$QUERY" "$MB_PATH" 2>/dev/null \
+        || echo "Ничего не найдено по запросу: $QUERY"
+    fi
   fi
 else
   # Безопасный режим: аннотируем private-спаны, редактируем hits в этих спанах.
-  QUERY="$QUERY" MB="$MB_PATH" python3 - <<'PYEOF'
+  QUERY="$QUERY" MB="$MB_PATH" INCLUDE_ARCHIVED="$INCLUDE_ARCHIVED" python3 - <<'PYEOF'
 import os, re
 from pathlib import Path
 
 query = os.environ["QUERY"].lower()
 mb = Path(os.environ["MB"])
+include_archived = os.environ.get("INCLUDE_ARCHIVED") == "1"
 priv_closed = re.compile(r"<private>.*?</private>", re.DOTALL)
 priv_open = re.compile(r"<private>.*\Z", re.DOTALL)
 
@@ -153,6 +170,9 @@ REDACTED_STUB = "[REDACTED match in private block]"
 
 found = False
 for md in sorted(mb.rglob("*.md")):
+    rel = md.relative_to(mb).as_posix()
+    if not include_archived and rel.startswith("notes/archive/"):
+        continue
     try:
         text = md.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
@@ -187,7 +207,7 @@ for md in sorted(mb.rglob("*.md")):
 
     if hits:
         found = True
-        print(f"=== {md.relative_to(mb)} ===")
+        print(f"=== {rel} ===")
         for num, line in hits[:20]:
             print(f"{num}:{line}")
         print()

@@ -477,6 +477,39 @@ def test_private_in_tags_field_ignored(index_mod, mb_path):
 
 
 # ═══════════════════════════════════════════════════════════════
+# Archived flag (notes/archive/)
+# ═══════════════════════════════════════════════════════════════
+
+
+def test_archived_flag_true_for_notes_archive_subdir(index_mod, mb_path):
+    """notes/archive/X.md → entry.archived: True."""
+    archive = mb_path / "notes" / "archive"
+    archive.mkdir(parents=True, exist_ok=True)
+    (archive / "old.md").write_text(
+        "---\ntype: note\nimportance: low\n---\n\nArchived summary.\n"
+    )
+    index_mod.build_index(str(mb_path))
+
+    data = json.loads((mb_path / "index.json").read_text())
+    assert len(data["notes"]) == 1
+    assert data["notes"][0]["archived"] is True
+    assert data["notes"][0]["path"] == "notes/archive/old.md"
+
+
+def test_archived_flag_false_for_regular_notes(index_mod, mb_path):
+    """notes/X.md (не в archive) → archived: False."""
+    make_note(
+        mb_path,
+        "active.md",
+        "---\ntype: note\n---\n\nActive note.\n",
+    )
+    index_mod.build_index(str(mb_path))
+
+    data = json.loads((mb_path / "index.json").read_text())
+    assert data["notes"][0]["archived"] is False
+
+
+# ═══════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════
 

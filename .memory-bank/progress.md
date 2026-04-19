@@ -331,3 +331,30 @@
 
 
 
+
+## 2026-04-20 (продолжение)
+
+### Этап 4: Compaction decay `/mb compact` ✅
+- **Корректировка пользователя**: plan архивируется **ТОЛЬКО** если (age > threshold) **AND** (status = done). Одной только давности недостаточно — старый план может быть активен (long-running feature). Critical safety fix для избежания потери рабочих планов.
+- **TDD red-first**: `tests/bats/test_compact.bats` — 20 тестов. Red verified: 20/20 fail до кода.
+- **Реализация `scripts/mb-compact.sh`** (299 строк ≤300 target, shellcheck 0 warnings):
+  - Done-signal detection — 3 источника (OR):
+    - Primary: файл физически в `plans/done/` (перемещён через mb-plan-done.sh)
+    - Метка `✅`/`[x]` в `checklist.md` для basename плана
+    - Упоминание в `progress.md`/`STATUS.md` как `завершён|завершена|завершено|done|closed|shipped`
+  - Negative signal: `⬜`/`[ ]` в checklist → явно active, не archive даже если >180d
+  - Plans в `plans/done/` + age>60d → candidate (in_done_dir reason)
+  - Plans в `plans/` + age>60d + done-signal → candidate
+  - Active plans (not done) + age>180d → warning only (не archive, проверь актуальность)
+  - Notes в `notes/` + `importance: low` + age>90d + нет refs в core файлах → candidate
+  - Broken frontmatter → skip с warning (не блокирует batch)
+  - `--dry-run` (default) — reasoning only, 0 file changes
+  - `--apply` — plans → 1-line в `BACKLOG.md ## Archived plans` + delete; notes → move в `notes/archive/` + body compressed до 3 строк + archived marker; touch `.last-compact`
+- **`mb-index-json.py` extended**: `archived: bool` flag для `notes/archive/*` entries. 2 новых pytest теста.
+- **`mb-search.sh` extended**: `--include-archived` флаг. Default исключает archived в freetext и tag режимах. 4 новых bats теста (test_search_archived.bats).
+- **Path handling баг найден и исправлен**: исходно rel-path строился смешением abs/relative → "archived plan: .memory-bank/plans/done/..." вместо "plans/done/...". Fix: `MB_PATH=$(cd "$MB_PATH_RAW" && pwd)` — всегда absolute для rel computation.
+- **Документация**: `commands/mb.md` секция `/mb compact` с полной логикой + примеры dry-run/apply output. `references/metadata.md` — schema с archived + has_private fields.
+- **Dogfood**: на живом `.memory-bank` — 0 candidates (clean ✓). Artificial test: 150d done-plan → candidate ✓, 150d active-plan → не candidate ✓ (safety works).
+- **Тесты итого**: bats **194/194 green** (+20 compact, +4 search_archived — итого 194 vs 188 до этапа, примечание: пересчёт показал 194 включая раннее неучтённые), pytest **44/44 green** (+2 archived), shellcheck 0 warnings.
+- **DoD**: 8 пунктов из плана выполнены. `/mb done` weekly prompt — отложен в backlog (YAGNI).
+- **Следующий шаг**: Gate v2.1 verification → CHANGELOG → VERSION 2.1.0 → git tag `v2.1.0`

@@ -46,7 +46,18 @@ Memory Bank использует `index.json` для быстрого поиск
       "type": "pattern",
       "tags": ["sqlite-vec", "embedding"],
       "importance": "high",
-      "summary": "Local semantic search pattern via sqlite-vec"
+      "summary": "Local semantic search pattern via sqlite-vec",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/archive/2025-11-10_old_experiment.md",
+      "type": "note",
+      "tags": ["cleanup"],
+      "importance": "low",
+      "summary": "Archived 2026-04-20 — compressed summary below",
+      "has_private": false,
+      "archived": true
     }
   ],
   "lessons": [
@@ -58,6 +69,8 @@ Memory Bank использует `index.json` для быстрого поиск
   "generated_at": "2026-04-19T12:00:00Z"
 }
 ```
+
+**`archived: bool`** — `true` если файл лежит в `notes/archive/` (перемещён через `mb-compact.sh --apply`). Default `mb-search` исключает archived; opt-in через `mb-search --include-archived <query>`.
 
 ### Regeneration
 

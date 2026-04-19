@@ -30,6 +30,7 @@ allowed-tools: [Bash, Read, Write, Edit, Task, Glob, Grep]
 | `verify` | Верификация выполнения плана (план vs код) |
 | `map [focus]` | Просканировать кодовую базу и записать MD-документы в `.memory-bank/codebase/`. focus: stack / arch / quality / concerns / all (default: all) |
 | `upgrade` | Обновить skill из GitHub (git pull + re-install). Флаги: `--check` (только проверить), `--force` (без подтверждения) |
+| `compact [--dry-run\|--apply]` | Status-based decay: plans в done/ >60d → BACKLOG archive, low-importance notes >90d → notes/archive/. Active планы НЕ трогаются. `--dry-run` (default) — reasoning only |
 | `init [--minimal\|--full]` | Инициализировать Memory Bank. `--full` (default): + RULES copy + CLAUDE.md с автодетектом стека. `--minimal`: только структура |
 | (нераспознанное) | Поиск по `$ARGUMENTS` |
 
@@ -274,6 +275,61 @@ User: /mb upgrade
 - Non-interactive без `--force` → error
 
 **ВАЖНО:** Skill repo (`~/.claude/skills/claude-skill-memory-bank/`) — это ИСХОДНИК skill'а. После `git pull` нужно re-run `install.sh` чтобы скопировать новые файлы в `~/.claude/{commands,agents,hooks,skills}/`. Скрипт делает это автоматически.
+
+### compact [--dry-run|--apply]
+
+Status-based archival decay. Очищает старые выполненные планы и неиспользуемые low-importance заметки, **не трогая активную работу**.
+
+**Критерии (AND, не OR):**
+
+| Кандидат | Age threshold | Done-signal (обязателен) |
+|----------|---------------|---------------------------|
+| Plan в `plans/done/` | `>60d` mtime | Primary: уже физически в `plans/done/` |
+| Plan в `plans/*.md` (active location) | `>60d` mtime | Метка `✅` / `[x]` в `checklist.md` строки с basename, ИЛИ упоминание в `progress.md`/`STATUS.md` как `завершён\|done\|closed\|shipped` |
+| Note в `notes/*.md` | `>90d` mtime | `importance: low` в frontmatter + **нет** референсов basename в `plan.md`/`STATUS.md`/`checklist.md`/`RESEARCH.md`/`BACKLOG.md` |
+
+**Safety-net:** active plans (not done) — **НЕ архивируются** даже >180d. Вместо этого warning "план X старше 180d, но не done — проверь актуальность".
+
+**Эффекты `--apply`:**
+- Plans → компрессия в 1 строку в `BACKLOG.md ## Archived plans` секцию, файл удалён. Ссылка на исходник в формате `(was: plans/done/<file>.md)` — git history сохраняет полный текст.
+- Notes → move в `notes/archive/` + body сжат до 3 непустых строк + marker `<!-- archived on YYYY-MM-DD -->`. Entries получают `archived: true` в `index.json`.
+- Touched `.memory-bank/.last-compact` timestamp.
+
+`--dry-run` (default) — reasoning per candidate на stdout, 0 file changes.
+
+Выполни напрямую (systems-level, LLM не нужен для decision logic — она deterministic):
+
+```bash
+bash ~/.claude/skills/memory-bank/scripts/mb-compact.sh $ARGS_AFTER_COMPACT
+```
+
+**Поиск в архиве:** default `mb-search` НЕ находит archived. Opt-in через `mb-search.sh --include-archived <query>` или `--include-archived --tag <tag>`.
+
+**Типичный сценарий:**
+```
+User: /mb compact
+→ dry-run output:
+  mode=dry-run
+  plans_candidates=2
+  notes_candidates=5
+  candidates=7
+
+  # Plans to archive:
+    archive: plans/done/2026-01-10_feature_x.md (reason=in_done_dir, age=100d)
+    archive: plans/done/2026-02-01_fix_auth.md (reason=in_done_dir, age=78d)
+
+  # Notes to archive:
+    archive: notes/2025-12-15_experiment.md (reason=low_age_unref, age=125d)
+    ...
+
+  # Warnings — active plans older than 180d:
+    warning: plans/2025-09-01_long_feature.md is 230d old but not done — проверь актуальность
+
+User: /mb compact --apply
+→ [apply] archived plan: plans/done/2026-01-10_feature_x.md (reason=in_done_dir)
+  [apply] archived note: notes/2025-12-15_experiment.md → notes/archive/
+  ...
+```
 
 ### init [--minimal|--full]
 

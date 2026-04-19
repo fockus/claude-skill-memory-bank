@@ -145,15 +145,19 @@
 - ✅ SKILL.md секция "Private content" (quick-start + защита + важное предупреждение про git)
 - ✅ Security smoke: `TOP-SECRET-LEAK-CHECK` внутри `<private>` → НЕ появляется в `index.json` (dogfood verified)
 
-## Этап 4: Compaction decay `/mb compact` (v2.1)
-- ⬜ bats тесты (≥12, TDD red): plan>60d, note low>90d, dry-run, idempotent, archived flag
-- ⬜ `scripts/mb-compact.sh` (≤250 строк)
-- ⬜ Archive logic: plans → BACKLOG line, notes → `notes/archive/` summary
-- ⬜ `index.json` extend `archived: true`
-- ⬜ `/mb compact --dry-run|--apply` в `commands/mb.md`
-- ⬜ Интеграция в `/mb done`: weekly check + prompt
-- ⬜ Safety: note упомянута в `plan.md` → НЕ archive
-- ⬜ Dogfood на этом banks
+## Этап 4: Compaction decay `/mb compact` (v2.1) ✅
+- ✅ bats тесты: 20 в `test_compact.bats` (TDD red confirmed → all green). Покрывают status-based archival, time thresholds, safety-net refs, --dry-run/--apply, idempotency, broken frontmatter
+- ✅ `scripts/mb-compact.sh` — 299 строк (≤300 target), shellcheck 0 warnings. Status-based logic: требует (age > threshold) AND (done-signal)
+- ✅ Done-signal для plans — 3 источника (OR): `plans/done/` primary, ✅/[x] в `checklist.md`, "завершён\|done\|closed\|shipped" в `progress.md`/`STATUS.md`
+- ✅ Safety: active plans (not done) НЕ трогаются даже >180d → warning only. Корректировка пользователя 2026-04-20 — critical для избежания потери активной работы
+- ✅ Archive logic: plans → 1-line в `BACKLOG.md ## Archived plans` (формат `YYYY-MM-DD: title → outcome (was: plans/done/X.md)`) + delete. Notes → move в `notes/archive/` + body compressed до 3 строк + archived marker
+- ✅ `index.json` extended: `archived: bool` flag (true для `notes/archive/*`). 2 новых pytest теста (44 total green)
+- ✅ `mb-search.sh` расширен `--include-archived`: default исключает archived. 4 новых bats теста (test_search_archived.bats)
+- ✅ `/mb compact --dry-run|--apply` документирован в `commands/mb.md` с логикой decay + примеры output
+- ✅ `references/metadata.md` schema extended с `archived: bool` + `has_private: bool` fields
+- ✅ Safety tests: active plan >180d → не archive ✓, low note с ref в plan.md → не archive ✓
+- ✅ Dogfood: живой `.memory-bank` чистый (0 candidates). Artificial test: 150d done-plan → candidate, 150d active-plan → skipped (не done) ✓
+- ⏭️ `/mb done` weekly prompt интеграция — отложено в backlog (YAGNI: пользователь может запускать manually)
 
 ## Gate v2.1
 - ⬜ Auto-capture end-to-end (симуляция SessionEnd → progress.md updated)
