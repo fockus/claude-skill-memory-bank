@@ -62,8 +62,8 @@
 - ✅ `/mb init` объединён с `/mb:setup-project` → `/mb init [--minimal|--full]`. `--full` (default): структура + RULES + CLAUDE.md автодетект + `.planning/` symlink. `--minimal`: только структура
 - ✅ `commands/setup-project.md` удалён; install.sh/uninstall.sh/README/CLAUDE.md/claude-md-template обновлены (18 команд теперь)
 - ✅ README.md переписан: three-in-one concept (MB + RULES + dev toolkit) + coexistence секция + frontend FSD + mobile правила
-- ⬜ Orphan-команды — решено **оставить** (они часть dev-toolkit). `implement.md`/`pipeline.md` остаются глобально (GSD-зависимость)
-- ⬜ Валидация SKILL.md frontmatter через agent-sdk-verifier — отложено в Этап 6 (CI)
+- ✅ Orphan-команды — решено **оставить** (они часть dev-toolkit). `implement.md`/`pipeline.md` остаются глобально (GSD-зависимость)
+- ✅ Валидация SKILL.md frontmatter через agent-sdk-verifier — отложено в Этап 6 (CI)
 
 ## Этап 6: Tests + CI ✅
 - ✅ bats tests/bats/ — 117 тестов покрывают _lib, metrics, context, plan-sync, upgrade
@@ -97,12 +97,12 @@
 - ✅ **Итоги**: bats **148/148 green** (включая 5 search-tag), pytest **35/35 green** (16 merge-hooks + 19 index-json), **total coverage 94%**, 0 shellcheck warnings
 
 ## Этап 9: Финализация
-- ⬜ Написать `CHANGELOG.md` (v1.0.0 → v2.0.0)
-- ⬜ Написать `docs/MIGRATION-v1-v2.md`
-- ⬜ Переписать `README.md` — quick-start, ecosystem section
-- ⬜ Сократить `SKILL.md` до ≤150 строк (детали → references/)
-- ⬜ `.memory-bank/VERSION` маркер, `install.sh` пишет версию
-- ⬜ Roundtrip тест migration guide на существующем `.memory-bank/`
+- ✅ Написать `CHANGELOG.md` (v1.0.0 → v2.0.0)
+- ✅ Написать `docs/MIGRATION-v1-v2.md`
+- ✅ Переписать `README.md` — quick-start, ecosystem section
+- ✅ Сократить `SKILL.md` до ≤150 строк (детали → references/)
+- ✅ `.memory-bank/VERSION` маркер, `install.sh` пишет версию
+- ✅ Roundtrip тест migration guide на существующем `.memory-bank/`
 
 ## Gate v2
 - ⬜ Все 9 этапов завершены, DoD выполнен

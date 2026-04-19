@@ -2,25 +2,24 @@
 
 ## Текущий фокус
 
-Рефактор skill v1 → v2: language-agnostic, DRY, tested, integrated with Claude Code ecosystem. Устраняем 36 проблем, выявленных в аудите.
+**v2.0.0 released.** Skill language-agnostic, tested, CI-covered, интегрирован с экосистемой Claude Code. Three-in-one: Memory Bank + RULES + dev toolkit.
 
 ## Active plan
 
 <!-- mb-active-plan -->
-**Active plan:** `plans/2026-04-19_refactor_skill-v2.md` — refactor — skill-v2
 <!-- /mb-active-plan -->
 
-**`plans/2026-04-19_refactor_skill-v2.md`** — главный план рефактора (10 этапов).
+Нет активного плана. Завершённые планы в `plans/done/`.
 
 ## Ближайшие шаги
 
-1. Завершить Этап 0 (этот init) — зафиксировать в progress.md
-2. Начать Этап 1 — `_lib.sh` + `detect_stack` + bats-тесты (TDD first)
-3. Этапы 2-4 выполняются параллельно после Этапа 1
+1. Мониторить CI после push на GitHub (первый запуск workflow)
+2. Собрать feedback от пользователей после релиза v2.0.0
+3. Решение по v3 backlog-идеям (sqlite-vec, i18n, native memory bridge code)
 
-## Отложено
+## Отложено (v3+ backlog)
 
-- Создание отдельного plugin'а `memory-bank-dev-commands` (Этап 5) — вынос orphan-команд
-- sqlite-vec для реального semantic search — вне scope v2 (опционально в v3)
-- i18n error-сообщений — v3
-- Интеграция с нативной Claude Code memory через bridge — Этап 5 (только документация, не код)
+- **sqlite-vec** для реального semantic search — вместо текущего простого frontmatter-index
+- **i18n** error-сообщений — сейчас всё на русском
+- **Native memory bridge** — программная синхронизация `.memory-bank/` и auto memory (сейчас только документация coexistence)
+- **Отдельный plugin** `memory-bank-dev-commands` — вынос 10 dev-команд в отдельный плагин (если пользователи потребуют модульность)

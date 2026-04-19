@@ -207,3 +207,30 @@
   - TOTAL coverage: **94%** (merge-hooks 92%, index-json 81%). TOTAL выше cov-fail-under=85%
   - Shellcheck: **0 warnings**. Ruff: **all passed**
 - Следующий шаг: Этап 9 (финализация — CHANGELOG, docs/MIGRATION-v1-v2.md, SKILL.md ≤150 строк, README quick-start)
+
+## 2026-04-20
+
+### Этап 9: Финализация — v2.0.0 release
+- **`CHANGELOG.md`** — в keep-a-changelog формате v1.1.0:
+  - Added: 12 языков, `_lib.sh`, plan-sync/done, upgrade, index-json, --tag, /mb init/map/context --deep, FSD/Mobile rules, MB_ALLOW_NO_VERIFY, log rotation, GitHub Actions
+  - Changed: codebase-mapper → mb-codebase-mapper, metrics hardcode → mb-metrics.sh, Task( → Agent(, init merge
+  - Removed: `/mb:setup-project`, orphan-агент, хардкод pytest
+  - Fixed: 2 E2E-found baga (install marker, macOS realpath), Node src_glob, mb-note collision, false-positives
+  - Security: MB_ALLOW_NO_VERIFY opt-in override
+- **`docs/MIGRATION-v1-v2.md`** — TL;DR + 5-step пошаговая миграция + rollback + known issues + поддержка
+- **`SKILL.md`** сокращён **294 → 110 строк** (порог ≤150 ✓). Детали вынесены:
+  - `references/metadata.md` — frontmatter protocol + index.json + 8 ключевых правил MB
+  - `references/planning-and-verification.md` — правила создания планов + Plan Verifier
+  - Новая структура SKILL.md: frontmatter + three-in-one intro + quick start + workspace + tools table + agents table + coexistence + links
+- **VERSION bump**: `2.0.0-dev` → **`2.0.0`**
+- **Финальная полная проверка**: 148 bats green, 35 pytest green, 94% total coverage, 0 shellcheck, ruff passed
+- **Gate v2 — все 7 критериев пройдены** ✅:
+  1. Language coverage: 12 стеков
+  2. Cross-platform: CI matrix macos+ubuntu
+  3. Ecosystem: 0 `Task(`, coexistence doc, `Agent()` везде
+  4. DRY + tested: `_lib.sh` в 5+ скриптах, Python coverage 94% (порог 85%), 0 shellcheck
+  5. UX: единая `/mb init`, `mb-codebase-mapper` 4 MD, `/mb context` integrated
+  6. **Dogfooding**: `.memory-bank/` в репо, план закрыт через `mb-plan-done.sh` (скрипт реализован в Этапе 4 — круг замкнулся)
+  7. Versioning: CHANGELOG, migration guide, VERSION 2.0.0
+- **Dogfood финальный**: `bash scripts/mb-plan-done.sh .memory-bank/plans/2026-04-19_refactor_skill-v2.md .memory-bank` → `closed_stages=10 → plans/done/`. Все 10 секций этапов в checklist: `⬜ → ✅`. Active plan блок очищен
+- **Итог**: skill готов к релизу v2.0.0. Первый push на GitHub запустит CI (matrix macos+ubuntu); badge в README покажет статус
