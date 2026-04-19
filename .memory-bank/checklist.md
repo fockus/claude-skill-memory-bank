@@ -3,7 +3,7 @@
 ## Этап 0: Dogfood init ✅
 - ✅ Создать `.memory-bank/` структуру (experiments, plans/done, notes, reports, codebase)
 - ✅ Написать `STATUS.md`, `plan.md`, `checklist.md`, `RESEARCH.md`, `BACKLOG.md`, `progress.md`, `lessons.md`
-- ✅ Сохранить план рефактора в `plans/2026-04-19_refactor_skill-v2.md`
+- ✅ Сохранить план рефактора в `plans/done/2026-04-19_refactor_skill-v2.md`
 - ✅ Зафиксировать коммит `chore: dogfood — init .memory-bank for skill v2 refactor` (637dd84)
 
 ## Этап 1: DRY-утилиты + language detection ✅
@@ -126,14 +126,14 @@
 - ✅ SKILL.md секция "Auto-capture" (129 строк ≤150)
 - ✅ Append-only подход вместо LLM-call (hook bash-only, placeholder дочитывается в /mb start). LLM-upgrade в v2.1.1 backlog
 
-## Этап 2: Drift checkers без AI (`mb-drift.sh`) (v2.1)
-- ⬜ bats тесты для 8 чекеров (≥16 тестов, TDD red)
-- ⬜ `scripts/mb-drift.sh`: path, staleness, script-coverage, dependency, cross-file, index-sync, command, frontmatter
-- ⬜ `agents/mb-doctor.md` рефакторинг: drift-first, AI-if-needed
-- ⬜ Fixture `tests/fixtures/broken-mb/` с ≥5 категорий drift
-- ⬜ `references/templates.md` — секция "Drift checks"
-- ⬜ Optional pre-commit hook `mb-drift-precommit.sh`
-- ⬜ Dogfood: на live `.memory-bank/` → 0 warnings
+## Этап 2: Drift checkers без AI (`mb-drift.sh`) (v2.1) ✅
+- ✅ bats тесты для 8 чекеров (20 тестов: 3 smoke + 16 positive/negative pairs + 1 broken-fixture, TDD red-first confirmed 19/20 fail)
+- ✅ `scripts/mb-drift.sh`: 8 checkers (path, staleness, script_coverage, dependency, cross_file, index_sync, command, frontmatter), 161 строка, shellcheck 0 warnings
+- ✅ `agents/mb-doctor.md` рефакторинг: Шаг 0 = mb-drift.sh → ветвление по `drift_warnings`, Шаги 1-4 (AI) только если >0 или doctor-full
+- ✅ Fixture `tests/fixtures/broken-mb/` — 5 категорий drift (stale progress 40d, broken path in checklist, broken frontmatter note, Python version mismatch, test count cross-file mismatch)
+- ✅ `references/templates.md` — секция "Drift checks" с таблицей 8 checkers + pre-commit hook пример
+- ⏭️ Pre-commit hook — документирован, реальный файл оставлен user opt-in (YAGNI — большинство не захочет блокирующий hook)
+- ✅ Dogfood: на live `.memory-bank/` → 1 real drift найден (checklist ссылка на `plans/` вместо `plans/done/`), исправлено → 0 warnings
 
 ## Этап 3: PII markers `<private>...</private>` (v2.1)
 - ⬜ pytest тесты `<private>` в `mb-index-json.py` (≥6 тестов, TDD red)

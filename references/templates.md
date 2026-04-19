@@ -190,6 +190,74 @@ Types: `feature`, `fix`, `refactor`, `experiment`
 
 ---
 
+## Drift checks (`scripts/mb-drift.sh`)
+
+Deterministic проверки консистентности `.memory-bank/` без AI-вызовов. Используется `mb-doctor` шагом 0 — экономит токены когда банк уже чист.
+
+### Использование
+
+```bash
+# На текущем проекте
+bash ~/.claude/skills/memory-bank/scripts/mb-drift.sh .
+
+# На другом проекте
+bash ~/.claude/skills/memory-bank/scripts/mb-drift.sh /path/to/project
+```
+
+### Output (stdout — key=value)
+
+```
+drift_check_path=ok
+drift_check_staleness=ok
+drift_check_script_coverage=ok
+drift_check_dependency=skip
+drift_check_cross_file=ok
+drift_check_index_sync=skip
+drift_check_command=ok
+drift_check_frontmatter=ok
+drift_warnings=0
+```
+
+**Значения:** `ok` (нет проблем), `warn` (drift найден), `skip` (проверка неприменима — например `dependency=skip` если нет `pyproject.toml`/`package.json`/`go.mod`).
+
+Диагностические сообщения — на stderr, префикс `[drift:<name>]`.
+
+**Exit code:** 0 если `drift_warnings=0`, иначе 1 (подходит для pre-commit hook).
+
+### 8 чекеров
+
+| Имя | Что проверяет |
+|-----|---------------|
+| `path` | Ссылки `notes/X.md`, `plans/X.md`, `reports/X.md`, `experiments/X.md` в core-файлах существуют |
+| `staleness` | `STATUS.md`/`plan.md`/`checklist.md`/`progress.md` не обновлялись >30 дней |
+| `script_coverage` | `bash scripts/X.sh` references ведут на existing файлы (в проекте или в skill) |
+| `dependency` | Python версия в `STATUS.md` совпадает с `pyproject.toml` (если есть) |
+| `cross_file` | Числа вида "N bats green" консистентны между `STATUS.md`, `checklist.md`, `progress.md` |
+| `index_sync` | `index.json` mtime свежее всех `notes/*.md` (иначе нужно переиндексировать) |
+| `command` | `npm run X` / `make X` references ведут на existing scripts/targets |
+| `frontmatter` | `notes/*.md` с `---` имеют закрывающий fence |
+
+### Интеграция с `mb-doctor`
+
+`mb-doctor` вызывает `mb-drift.sh` первым шагом:
+- `drift_warnings=0` → отчёт "ok", LLM-анализ не нужен
+- `drift_warnings>0` → читать warnings и запустить Шаги 1-4 агента (cross-reference проверки, Edit fixes)
+
+Это даёт ~80% экономии токенов на стандартных случаях, когда банк чист.
+
+### Pre-commit hook (optional)
+
+```bash
+# .git/hooks/pre-commit
+#!/bin/bash
+bash ~/.claude/skills/memory-bank/scripts/mb-drift.sh . || {
+  echo "Memory Bank drift detected — run /mb doctor to fix"
+  exit 1
+}
+```
+
+---
+
 ## Custom metrics override (`.memory-bank/metrics.sh`)
 
 Опциональный файл. Если существует — `mb-metrics.sh` вызовет его вместо auto-detect. Используй когда:

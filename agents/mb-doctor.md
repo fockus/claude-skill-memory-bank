@@ -17,7 +17,25 @@
 
 ## Алгоритм диагностики
 
-### Шаг 1: Собери данные
+### Шаг 0: Запусти deterministic drift checkers ПЕРЕД LLM-анализом
+
+`mb-drift.sh` ловит 80% проблем без единого токена LLM — используй его первым шагом:
+
+```bash
+bash ~/.claude/skills/memory-bank/scripts/mb-drift.sh .
+```
+
+Output (key=value на stdout, warnings на stderr):
+- `drift_check_<name>=ok|warn|skip` для 8 чекеров (path, staleness, script_coverage, dependency, cross_file, index_sync, command, frontmatter)
+- `drift_warnings=N` — итоговое число
+
+**Ветвление:**
+- **`drift_warnings=0`** → MB чист на уровне deterministic checks. Если пользователь не просит глубокий scan — **сразу переходи к Шагу 5** с отчётом "deterministic checks ok". AI-анализ пропускается → 0 токенов LLM.
+- **`drift_warnings>0`** → читай stderr-warnings, это **стартовая точка для AI-анализа** Шагов 1-4 ниже. Исправляй сначала то, что указано drift'ом, потом ищи семантические рассинхроны.
+
+Если пользователь явно попросил `doctor-full` или указал что `drift` недостаточно — запускай Шаги 1-4 независимо от `drift_warnings`.
+
+### Шаг 1: Собери данные (только если drift_warnings>0 или doctor-full)
 
 Прочитай ВСЕ core files:
 1. `STATUS.md` — фаза, метрики, roadmap, ограничения

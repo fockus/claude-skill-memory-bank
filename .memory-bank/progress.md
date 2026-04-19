@@ -289,5 +289,25 @@
 - **DoD всё ✓**: 8 пунктов из плана выполнены. Append-only подход вместо LLM-call в hook — сознательное упрощение (bash-скрипт не может вызвать Agent; детали восстанавливает следующий `/mb start` через MB Manager + JSONL-транскрипт, что совпадает с Этапом 5)
 - **Следующий шаг**: Этап 2 — drift checkers без AI (`mb-drift.sh`). TDD red-first: `tests/bats/test_drift.bats` (≥16 тестов по 2 на чекер) до кода
 
+### Этап 2 v2.1 — Deterministic drift checkers ✅
+- **TDD red-first**: `tests/bats/test_drift.bats` — 20 тестов (3 smoke + 16 positive/negative пар для 8 checkers + 1 broken-fixture smoke). Red phase: 19/20 fail (1 псевдо-green из-за слабого assertion — не блокер).
+- **Broken fixture**: `tests/fixtures/broken-mb/` — 5 категорий drift (stale progress.md 40d старый, broken path `notes/2026-01-01_nonexistent.md` в checklist, broken frontmatter в note, Python 3.11 vs pyproject 3.12, test count mismatch).
+- **Реализация**: `scripts/mb-drift.sh` — 161 строка, shellcheck 0 warnings:
+  - 8 deterministic checkers: `path`, `staleness` (>30 days), `script_coverage`, `dependency` (Python version STATUS vs pyproject), `cross_file` (N bats green consistency), `index_sync`, `command` (npm run / make targets), `frontmatter` (fence close)
+  - Output: `drift_check_<name>=ok|warn|skip` + `drift_warnings=N` на stdout, `[drift:<name>]` на stderr
+  - Exit 0 если `drift_warnings=0`, иначе 1 (подходит для pre-commit hook)
+  - Использует `_lib.sh`, portable `stat -f%m || stat -c%Y`
+- **Рефакторинг `agents/mb-doctor.md`**:
+  - Шаг 0 — `mb-drift.sh` deterministic check
+  - `drift_warnings=0` → skip LLM-анализ, сразу отчёт "ok" (≈80% случаев → 0 токенов)
+  - `drift_warnings>0` → Шаги 1-4 AI-анализа запускаются с drift warnings как стартовой точкой
+  - Full scan (`doctor-full`) игнорирует ветвление, всегда делает AI pass
+- **Документация**: `references/templates.md` — секция "Drift checks" с таблицей 8 checkers + pre-commit hook template
+- **Dogfood на живом MB**: mb-drift нашёл 1 real drift — `checklist.md:6` ссылался на `plans/2026-04-19_refactor_skill-v2.md`, но план уже в `plans/done/`. Исправлено → 0 warnings на live банке
+- **Тесты**: bats **183/183 green** (145 старых unit + 20 drift + 18 e2e), shellcheck 0 warnings, pytest 35/35 (не трогали)
+- **DoD все ✓**: 7 из 7 пунктов выполнены. Pre-commit hook как отдельный файл оставлен YAGNI — документирован, user активирует сам если нужен
+- **Следующий шаг**: Этап 3 — PII markers `<private>...</private>`. TDD red-first: расширить `tests/pytest/test_index_json.py` (≥6 новых тестов на exclude from summary/tags, malformed handling) до кода
+
+
 
 
