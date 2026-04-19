@@ -58,8 +58,13 @@ if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
     echo -e "  ${YELLOW}~${NC} CLAUDE.md (already has MB section)"
   fi
 else
-  install_file "$SKILL_DIR/rules/CLAUDE-GLOBAL.md" "$CLAUDE_DIR/CLAUDE.md"
-  echo -e "  ${GREEN}✓${NC} CLAUDE.md (created)"
+  mkdir -p "$CLAUDE_DIR"
+  {
+    printf '# [MEMORY-BANK-SKILL]\n'
+    cat "$SKILL_DIR/rules/CLAUDE-GLOBAL.md"
+  } > "$CLAUDE_DIR/CLAUDE.md"
+  INSTALLED_FILES+=("$CLAUDE_DIR/CLAUDE.md")
+  echo -e "  ${GREEN}✓${NC} CLAUDE.md (created with marker)"
 fi
 
 # ═══ Step 2: Agents ═══

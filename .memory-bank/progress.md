@@ -143,3 +143,26 @@
 - **Orphan-команды**: решено **не удалять**. По уточнению пользователя skill = dev-toolkit + MB + RULES, 18 команд — часть skill'а (не orphan). `implement.md`/`pipeline.md` остаются глобально (GSD-зависимость)
 - **Метрики**: bats 117/117 green (не изменилось — Этап 5 без новых скриптов), shellcheck 0 warnings, 0 `Task(` вхождений, 0 хардкода
 - Следующий шаг: Этап 6 (Tests + CI — pytest для `merge-hooks.py`, e2e Docker roundtrip, GitHub Actions matrix macos+ubuntu)
+
+### Этап 6: Tests + CI
+- **pytest suite** — `tests/pytest/test_merge_hooks.py`, 16 тестов:
+  - 12 subprocess-based (CLI contract: creates-when-missing, preservation, idempotency ×2, dedup, empty settings, UTF-8, corrupted settings rejection, real hooks.json, atomic write, usage error)
+  - 4 direct-call через importlib (для coverage): create, merge-into-existing, rejects-corrupted, ignores-non-dict-entries
+  - Коллизия: модуль `merge-hooks.py` имеет дефис → `importlib.util.spec_from_file_location` вместо import
+  - Coverage: **92% на `settings/merge-hooks.py`** (порог 85%). Непокрытые строки 46-48 — except-блок atomic write (трудно триггерить без симуляции ошибки)
+  - `.coveragerc` создан: `include = settings/merge-hooks.py`
+- **e2e suite** — `tests/e2e/test_install_uninstall.bats`, 15 тестов:
+  - Подход: isolated `HOME=$(mktemp -d)` вместо Docker → работает на macOS и Linux без extra deps
+  - Покрытие install: RULES/CLAUDE/commands/agents/hooks/settings, executable bits, manifest JSON valid, идемпотентность ×2 (CLAUDE.md секций и settings hooks не дублируется)
+  - Покрытие uninstall: файлы убраны, secrets hooks/CLAUDE stripped, user content preserved (CLAUDE.md выше маркера + user hooks в settings), manifest убран
+- **2 реальных бага найдены и починены**:
+  1. `install.sh` не добавлял `# [MEMORY-BANK-SKILL]` маркер при создании **нового** CLAUDE.md (только при merge в существующий). Результат: uninstall.sh не находил секцию для очистки. Fix: единая логика — всегда писать маркер
+  2. `uninstall.sh` использовал `realpath -m` (GNU-only флаг для non-existing paths). На macOS BSD realpath падает. Fix: манифест хранит абсолютные пути, `realpath` не нужен → убрали
+- **GitHub Actions** — `.github/workflows/test.yml`:
+  - Job `test`: matrix `[ubuntu-latest, macos-latest]` × (bats unit + bats e2e + pytest). `bats-core/bats-action@3.0.0` для bats setup. `pytest --cov-fail-under=85`
+  - Job `lint` (Ubuntu only): shellcheck + ruff
+  - `fail-fast: false` — один OS не скрывает другой
+  - Triggers: `push main` + `pull_request main` + `workflow_dispatch`
+- **.gitignore расширен** (`.coverage`, `.pytest_cache/`, `.ruff_cache/`), **status badge** в README
+- **Локальные результаты**: 132 bats green (117 unit + 15 e2e), 16 pytest green (92% coverage), 0 shellcheck warnings, ruff all passed
+- Следующий шаг: Этап 7 (Hooks fixes — file-change-log false-positives на `pass`/docstring, log rotation 10MB, `MB_ALLOW_NO_VERIFY=1` bypass в block-dangerous, merge-hooks дедупликация с id-маркером)

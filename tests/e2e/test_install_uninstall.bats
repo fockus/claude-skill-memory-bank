@@ -1,0 +1,173 @@
+#!/usr/bin/env bats
+# End-to-end test: install.sh → verify files → uninstall.sh → verify clean.
+#
+# Runs against an isolated HOME directory — does not touch the real ~/.claude/.
+# Works on macOS and Linux without Docker.
+
+setup() {
+  REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
+  SANDBOX_HOME="$(mktemp -d)"
+  export HOME="$SANDBOX_HOME"
+
+  # Ensure Python 3 + jq-less mode. install.sh uses python3 for manifest + merge-hooks.
+  command -v python3 >/dev/null || skip "python3 not installed"
+}
+
+teardown() {
+  [ -n "${SANDBOX_HOME:-}" ] && [ -d "$SANDBOX_HOME" ] && rm -rf "$SANDBOX_HOME"
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Install
+# ═══════════════════════════════════════════════════════════════
+
+@test "install: creates RULES, CLAUDE.md, commands, agents, hooks" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  [ -f "$HOME/.claude/RULES.md" ]
+  [ -f "$HOME/.claude/CLAUDE.md" ]
+  [ -d "$HOME/.claude/commands" ]
+  [ -d "$HOME/.claude/agents" ]
+  [ -d "$HOME/.claude/hooks" ]
+  [ -d "$HOME/.claude/skills/memory-bank" ]
+}
+
+@test "install: copies expected commands" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  # Key commands must exist
+  [ -f "$HOME/.claude/commands/mb.md" ]
+  [ -f "$HOME/.claude/commands/commit.md" ]
+  [ -f "$HOME/.claude/commands/review.md" ]
+  [ -f "$HOME/.claude/commands/plan.md" ]
+  # Setup-project removed in v2
+  [ ! -f "$HOME/.claude/commands/setup-project.md" ]
+}
+
+@test "install: copies 4 MB-native agents" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  [ -f "$HOME/.claude/agents/mb-manager.md" ]
+  [ -f "$HOME/.claude/agents/mb-doctor.md" ]
+  [ -f "$HOME/.claude/agents/plan-verifier.md" ]
+  [ -f "$HOME/.claude/agents/mb-codebase-mapper.md" ]
+  # Orphan agent must be gone
+  [ ! -f "$HOME/.claude/agents/codebase-mapper.md" ]
+}
+
+@test "install: creates settings.json with MB hooks" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  [ -f "$HOME/.claude/settings.json" ]
+  grep -q "memory-bank-skill" "$HOME/.claude/settings.json"
+}
+
+@test "install: skill scripts are executable" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  for s in mb-context.sh mb-metrics.sh mb-plan.sh mb-plan-sync.sh mb-plan-done.sh _lib.sh; do
+    [ -x "$HOME/.claude/skills/memory-bank/scripts/$s" ]
+  done
+}
+
+@test "install: CLAUDE.md has MEMORY-BANK-SKILL marker" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  grep -q "\[MEMORY-BANK-SKILL\]" "$HOME/.claude/CLAUDE.md"
+}
+
+@test "install: writes manifest" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  [ -f "$REPO_ROOT/.installed-manifest.json" ]
+  python3 -c "import json; json.load(open('$REPO_ROOT/.installed-manifest.json'))"
+}
+
+@test "install: idempotent — two runs yield no duplicate CLAUDE.md sections" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  count=$(grep -c "\[MEMORY-BANK-SKILL\]" "$HOME/.claude/CLAUDE.md")
+  [ "$count" -eq 1 ]
+}
+
+@test "install: idempotent — settings.json has no duplicate hooks" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  # Each skill hook command should appear exactly once
+  block_count=$(grep -c "block-dangerous.sh" "$HOME/.claude/settings.json")
+  [ "$block_count" -eq 1 ]
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Uninstall roundtrip
+# ═══════════════════════════════════════════════════════════════
+
+@test "uninstall: removes installed files" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  [ ! -f "$HOME/.claude/RULES.md" ]
+  [ ! -f "$HOME/.claude/commands/mb.md" ]
+  [ ! -f "$HOME/.claude/agents/mb-manager.md" ]
+  [ ! -f "$HOME/.claude/hooks/block-dangerous.sh" ]
+  [ ! -d "$HOME/.claude/skills/memory-bank" ]
+}
+
+@test "uninstall: strips MB hooks from settings.json" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  # settings.json may still exist, but must not contain memory-bank-skill markers
+  if [ -f "$HOME/.claude/settings.json" ]; then
+    ! grep -q "memory-bank-skill" "$HOME/.claude/settings.json"
+  fi
+}
+
+@test "uninstall: strips MEMORY-BANK-SKILL section from CLAUDE.md" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  if [ -f "$HOME/.claude/CLAUDE.md" ]; then
+    ! grep -q "\[MEMORY-BANK-SKILL\]" "$HOME/.claude/CLAUDE.md"
+  fi
+}
+
+@test "uninstall: preserves user CLAUDE.md content above skill section" {
+  # User has their own CLAUDE.md before install
+  mkdir -p "$HOME/.claude"
+  echo "# User's own preferences" > "$HOME/.claude/CLAUDE.md"
+  echo "Important project rules" >> "$HOME/.claude/CLAUDE.md"
+
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  grep -q "User's own preferences" "$HOME/.claude/CLAUDE.md"
+  grep -q "Important project rules" "$HOME/.claude/CLAUDE.md"
+}
+
+@test "uninstall: preserves user hooks in settings.json" {
+  # User has their own settings before install
+  mkdir -p "$HOME/.claude"
+  cat > "$HOME/.claude/settings.json" <<'EOF'
+{
+  "hooks": {
+    "PreToolUse": [
+      {"matcher": "Edit", "hooks": [{"type": "command", "command": "echo user-edit-hook"}]}
+    ]
+  }
+}
+EOF
+
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  # User hook survives both install and uninstall
+  grep -q "user-edit-hook" "$HOME/.claude/settings.json"
+}
+
+@test "uninstall: removes manifest after cleanup" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  [ ! -f "$REPO_ROOT/.installed-manifest.json" ]
+}

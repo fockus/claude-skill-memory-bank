@@ -65,14 +65,17 @@
 - ⬜ Orphan-команды — решено **оставить** (они часть dev-toolkit). `implement.md`/`pipeline.md` остаются глобально (GSD-зависимость)
 - ⬜ Валидация SKILL.md frontmatter через agent-sdk-verifier — отложено в Этап 6 (CI)
 
-## Этап 6: Tests + CI
-- ⬜ Создать `tests/bats/` с покрытием всех shell-скриптов
-- ⬜ Создать `tests/pytest/test_merge_hooks.py` (idempotent, preservation, corrupt recovery)
-- ⬜ Создать `tests/e2e/test_install_uninstall.sh` (Docker roundtrip)
-- ⬜ Создать `.github/workflows/test.yml` (macos + ubuntu matrix)
-- ⬜ Добавить shellcheck + ruff в CI
-- ⬜ Pytest coverage ≥85% для Python
-- ⬜ CI зелёный на main
+## Этап 6: Tests + CI ✅
+- ✅ bats tests/bats/ — 117 тестов покрывают _lib, metrics, context, plan-sync, upgrade
+- ✅ `tests/pytest/test_merge_hooks.py` — 16 тестов (idempotent ×2, preservation, corrupt recovery, atomic write, dedup, direct-call). **92% coverage** на `settings/merge-hooks.py` (превышает порог 85%)
+- ✅ `tests/e2e/test_install_uninstall.bats` — 15 тестов. Isolated HOME sandbox. Install + roundtrip + идемпотентность install × 2 + preservation user-hooks/CLAUDE.md
+- ✅ Починены 2 бага найденные e2e: (1) install.sh не ставил `# [MEMORY-BANK-SKILL]` маркер при создании нового CLAUDE.md → uninstall не находил секцию; (2) uninstall.sh использовал GNU-only `realpath -m` → упадало на macOS. Fix: манифест уже хранит абсолютные пути, `realpath` не нужен
+- ✅ `.github/workflows/test.yml` — matrix `[ubuntu-latest, macos-latest]` × (bats + e2e + pytest), fail-fast: false. `bats-core/bats-action@3.0.0` для bats install. Pytest `--cov-fail-under=85`
+- ✅ Lint job: shellcheck + ruff (Ubuntu only). Ruff `settings/` + `tests/pytest/` → **All checks passed**
+- ✅ `.coveragerc` создан: `include = settings/merge-hooks.py`, excl `if __name__ == "__main__":`
+- ✅ `.gitignore` дополнен: `.coverage`, `.pytest_cache/`, `.ruff_cache/`
+- ✅ Status badge в `README.md`
+- ✅ Локальный прогон: **132 bats green** (117 unit + 15 e2e), **16 pytest green** (92% coverage), **0 shellcheck warnings**, **ruff all passed**
 
 ## Этап 7: Hooks fixes
 - ⬜ Bats-тесты для `file-change-log.sh` (false-positives на `pass`, docstring TODO)

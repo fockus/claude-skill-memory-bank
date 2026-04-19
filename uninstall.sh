@@ -19,11 +19,12 @@ fi
 echo -n "Remove all memory-bank files? (y/n): "; read -r c; [ "$c" != "y" ] && exit 0
 
 echo -e "\n${BLUE}Removing files...${NC}"
+# Manifest stores absolute paths already — no realpath needed (BSD realpath has no -m flag).
 MANIFEST_PATH="$MANIFEST" python3 -c "import json, os; [print(f) for f in json.load(open(os.environ['MANIFEST_PATH'])).get('files',[])]" 2>/dev/null | while read -r filepath; do
+  [ -z "$filepath" ] && continue
   if [ -f "$filepath" ]; then
-    resolved=$(realpath -m "$filepath" 2>/dev/null) || continue
-    case "$resolved" in
-      "$HOME/.claude/"*) rm "$resolved" && echo "  rm $resolved" ;;
+    case "$filepath" in
+      "$HOME/.claude/"*) rm "$filepath" && echo "  rm $filepath" ;;
       *) echo "  [SKIP] $filepath (outside ~/.claude/)" ;;
     esac
   fi
@@ -33,10 +34,8 @@ echo -e "\n${BLUE}Restoring backups...${NC}"
 MANIFEST_PATH="$MANIFEST" python3 -c "import json, os; [print(b) for b in json.load(open(os.environ['MANIFEST_PATH'])).get('backups',[])]" 2>/dev/null | while read -r bp; do
   [ -n "$bp" ] && echo "$bp" | grep -q '|' && {
     orig="${bp%%|*}"; bak="${bp##*|}"
-    resolved_orig=$(realpath -m "$orig" 2>/dev/null) || continue
-    resolved_bak=$(realpath -m "$bak" 2>/dev/null) || continue
-    case "$resolved_orig" in
-      "$HOME/.claude/"*) [ -f "$resolved_bak" ] && mv "$resolved_bak" "$resolved_orig" && echo "  restored $resolved_orig" ;;
+    case "$orig" in
+      "$HOME/.claude/"*) [ -f "$bak" ] && mv "$bak" "$orig" && echo "  restored $orig" ;;
       *) echo "  [SKIP] $orig (outside ~/.claude/)" ;;
     esac
   }

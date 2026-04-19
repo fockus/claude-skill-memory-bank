@@ -10,10 +10,11 @@ Three-in-one skill для Claude Code: (1) Long-term project memory через `
 - Python-скрипты: 1 (`merge-hooks.py`, без тестов — Этап 6)
 - Агенты: 4 (`mb-manager`, `mb-doctor`, `plan-verifier`, `mb-codebase-mapper`)
 - Команды: **18** в `commands/` (после слияния `/mb init` + `/mb:setup-project`)
-- Bats tests: **117/117 green**
-- Python tests: 0 (Этап 6)
+- Bats tests: **132/132 green** (117 unit + 15 e2e install/uninstall)
+- Python tests: **16/16 green** (`test_merge_hooks.py`), **92% coverage** на `settings/merge-hooks.py` (порог 85%)
 - Shellcheck warnings: **0**
-- CI: отсутствует (Этап 6)
+- Ruff: **0 errors** (settings/ + tests/pytest/)
+- CI: **`.github/workflows/test.yml`** — matrix `[ubuntu-latest, macos-latest]` × (bats + e2e + pytest) + lint job (shellcheck + ruff, Ubuntu only), fail-fast: false
 - Fixtures: 12 стеков (python, go, rust, node, java, kotlin, swift, cpp, ruby, php, csharp, elixir + multi + unknown)
 - Hardcoded `pytest`/`ruff`/`taskloom` в operational code: **0**
 - Orphan-агенты: **0**
@@ -34,12 +35,12 @@ Three-in-one skill для Claude Code: (1) Long-term project memory через `
 - **Этап 3: mb-codebase-mapper** — orphan агент адаптирован (316 vs 770 строк), `/mb map` команда, интеграция в `/mb context --deep`
 - **Этап 4: Автоматизация consistency-chain** — `mb-plan-sync.sh` + `mb-plan-done.sh`, 18 bats-тестов, интеграция в `/mb plan` и `mb-doctor`
 - **Этап 5: Ecosystem integration** — Task→Agent (0 legacy), SKILL.md frontmatter fix, `/mb init [--minimal|--full]` (merged with setup-project), coexistence с native memory, three-in-one README, rules для frontend (FSD) и mobile (iOS/Android)
+- **Этап 6: Tests + CI** — pytest (16/16, 92% coverage), e2e install/uninstall (15/15, isolated HOME), GitHub Actions matrix macos+ubuntu, shellcheck+ruff lint job, **2 real bugs fixed** найденные e2e: missing marker + macOS realpath
 
 ### 🔧 В работе
-- **Этап 6: Tests + CI** — pytest для merge-hooks.py, e2e Docker install/uninstall, GitHub Actions matrix
+- **Этап 7: Hooks fixes** — file-change-log false-positives, log rotation, MB_ALLOW_NO_VERIFY bypass, merge-hooks дедупликация с id-маркером
 
 ### ⬜ Далее
-- **Этап 6**: Tests + CI (bats, pytest, GitHub Actions)
 - **Этап 7**: Hooks — fixes (false-positives, log rotation, bypass)
 - **Этап 8**: `index.json` — прагматичная реализация
 - **Этап 9**: Финализация (CHANGELOG, migration guide, SKILL.md <150 строк)

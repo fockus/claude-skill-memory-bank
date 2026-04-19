@@ -1,5 +1,7 @@
 # claude-skill-memory-bank
 
+[![test](https://github.com/fockus/claude-skill-memory-bank/actions/workflows/test.yml/badge.svg)](https://github.com/fockus/claude-skill-memory-bank/actions/workflows/test.yml)
+
 Three-in-one skill for Claude Code:
 
 1. **Long-term project memory** — `.memory-bank/` persists status, plans, checklists, lessons across sessions. Every session starts where the last one left off.
