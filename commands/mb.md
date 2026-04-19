@@ -31,6 +31,7 @@ allowed-tools: [Bash, Read, Write, Edit, Task, Glob, Grep]
 | `map [focus]` | Просканировать кодовую базу и записать MD-документы в `.memory-bank/codebase/`. focus: stack / arch / quality / concerns / all (default: all) |
 | `upgrade` | Обновить skill из GitHub (git pull + re-install). Флаги: `--check` (только проверить), `--force` (без подтверждения) |
 | `compact [--dry-run\|--apply]` | Status-based decay: plans в done/ >60d → BACKLOG archive, low-importance notes >90d → notes/archive/. Active планы НЕ трогаются. `--dry-run` (default) — reasoning only |
+| `import --project <path> [--since YYYY-MM-DD] [--apply]` | Bootstrap MB из Claude Code JSONL (`~/.claude/projects/<slug>/*.jsonl`). Extract: progress.md (daily), notes/ (arch discussions heuristic), PII auto-wrap. Dedup SHA256 + resume state |
 | `init [--minimal\|--full]` | Инициализировать Memory Bank. `--full` (default): + RULES copy + CLAUDE.md с автодетектом стека. `--minimal`: только структура |
 | (нераспознанное) | Поиск по `$ARGUMENTS` |
 
@@ -330,6 +331,50 @@ User: /mb compact --apply
   [apply] archived note: notes/2025-12-15_experiment.md → notes/archive/
   ...
 ```
+
+### import --project <path> [--since YYYY-MM-DD] [--apply]
+
+Bootstrap Memory Bank из транскриптов Claude Code JSONL. Cold-start за секунды вместо недель наработки вручную.
+
+**Источник:** `~/.claude/projects/<slug>/*.jsonl` — Claude Code хранит там все session transcripts. Slug строится из путей проекта (например `-Users-fockus-Apps-X` для `/Users/fockus/Apps/X`).
+
+**Extract strategy:**
+- `progress.md` — daily-grouped секции `## YYYY-MM-DD (imported)` с summary (N user turns + M assistant replies + первые 120 chars первого user-запроса)
+- `notes/` — heuristic architectural discussions: ≥3 consecutive assistant messages >1K chars → note `YYYY-MM-DD_NN_<topic-slug>.md` с frontmatter `importance: medium`, tags `[imported, discussion]`, body = first + last message compressed
+
+**Safety:**
+- `--dry-run` (default) — stdout summary (jsonls/events/days/notes counts), 0 file changes
+- `--apply` — выполняет writes + touches `.memory-bank/.import-state.json`
+- **Dedup:** SHA256(timestamp + first 500 chars text) persisted в state — 2 запуска подряд идемпотентны
+- **PII auto-wrap:** email + API-key (`sk-...`, `sk-ant-...`, `Bearer <long>`, `gh[pousr]_<long>`) regex → `<private>...</private>`. Intersection с Этапом 3 — imported данные защищены от leak в index.json/search
+- **Resume:** `.import-state.json` содержит `seen_hashes` — повторный импорт пропускает already-seen events
+- **Broken JSONL line:** skip с warning, остальное продолжает парситься
+
+Выполни напрямую:
+
+```bash
+python3 ~/.claude/skills/memory-bank/scripts/mb-import.py $ARGS_AFTER_IMPORT
+```
+
+**Типичный сценарий (cold-start):**
+```
+User: /mb import --project ~/.claude/projects/-Users-fockus-Apps-myproject/ --since 2026-03-01
+→ dry-run output:
+  jsonls=5
+  events=342
+  days=18
+  notes=12
+  mode=dry-run
+
+User: /mb import --project ~/.claude/projects/-Users-fockus-Apps-myproject/ --since 2026-03-01 --apply
+→ writes progress.md (18 daily sections) + 12 notes → state saved
+  jsonls=5 events=342 days=18 notes=12 mode=apply
+```
+
+**Ограничения v2.2:**
+- Summarization сейчас deterministic (first+last chars), не LLM. Haiku-powered compression — backlog для v2.3+ если качество summaries окажется недостаточным
+- Debug-session detection для `lessons.md` — TODO (v2.2+)
+- STATUS.md seed — только manual
 
 ### init [--minimal|--full]
 
