@@ -9,6 +9,7 @@
 - **Bridge to native Claude Code memory**: двунаправленная синхронизация ключевых записей между `.memory-bank/` и `~/.claude/projects/.../memory/`. Сейчас только документация coexistence (Этап 5).
 - **Auto-commit hook**: после `/mb done` автоматически создавать `chore(mb): ...` commit с дельтой `.memory-bank/`. Защищает от потери состояния при переключении веток.
 - **`/mb graph`**: визуализация связей plan→checklist→STATUS→progress для больших проектов. Подпитывает contextual recall.
+- **Stage 6.5 — Tree-sitter adapter для non-Python языков (opt-in extras)**: после Stage 6 (Python-only через `ast`) добавить tree-sitter backend через `pip install memory-bank-skill[codegraph]`. Drop-in replacement: same JSON schema, same agent interface. Purchases: Go/Rust/JS/TS/Java/Kotlin/Swift/C++/Ruby grammars. Trigger: 2+ пользователя с multi-language stack, или дог-фуд на non-Python проекте. [2026-04-20, corrected from original Stage 6 scope]
 
 ### LOW
 

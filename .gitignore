@@ -12,3 +12,4 @@ __pycache__/
 htmlcov/
 .pytest_cache/
 .ruff_cache/
+.memory-bank/codebase/.cache/

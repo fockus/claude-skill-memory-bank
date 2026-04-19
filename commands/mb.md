@@ -32,6 +32,7 @@ allowed-tools: [Bash, Read, Write, Edit, Task, Glob, Grep]
 | `upgrade` | Обновить skill из GitHub (git pull + re-install). Флаги: `--check` (только проверить), `--force` (без подтверждения) |
 | `compact [--dry-run\|--apply]` | Status-based decay: plans в done/ >60d → BACKLOG archive, low-importance notes >90d → notes/archive/. Active планы НЕ трогаются. `--dry-run` (default) — reasoning only |
 | `import --project <path> [--since YYYY-MM-DD] [--apply]` | Bootstrap MB из Claude Code JSONL (`~/.claude/projects/<slug>/*.jsonl`). Extract: progress.md (daily), notes/ (arch discussions heuristic), PII auto-wrap. Dedup SHA256 + resume state |
+| `graph [--apply] [src_root]` | Python code graph через stdlib `ast`: nodes (functions/classes/modules) + edges (imports/calls/inherits). Output: `codebase/graph.json` (JSON Lines) + `codebase/god-nodes.md` (top-20 by degree). Incremental SHA256 cache. Non-Python — Stage 6.5 backlog (tree-sitter opt-in) |
 | `init [--minimal\|--full]` | Инициализировать Memory Bank. `--full` (default): + RULES copy + CLAUDE.md с автодетектом стека. `--minimal`: только структура |
 | (нераспознанное) | Поиск по `$ARGUMENTS` |
 
@@ -375,6 +376,68 @@ User: /mb import --project ~/.claude/projects/-Users-fockus-Apps-myproject/ --si
 - Summarization сейчас deterministic (first+last chars), не LLM. Haiku-powered compression — backlog для v2.3+ если качество summaries окажется недостаточным
 - Debug-session detection для `lessons.md` — TODO (v2.2+)
 - STATUS.md seed — только manual
+
+### graph [--apply] [src_root]
+
+Построение code graph для Python-части проекта через stdlib `ast` (0 new deps). Заменяет `grep` для вопросов "где вызывается X?", "какие classes наследуются от Y?", "что импортируется из model.py?" — детерминистично, быстро, incremental.
+
+**Что парсит:**
+- **Nodes:** module (per file), function (top-level + nested), class
+- **Edges:** `import` (import X / from Y import Z), `call` (func() / obj.method()), `inherit` (class Child(Parent))
+
+**Output (`--apply`):**
+- `<mb>/codebase/graph.json` — JSON Lines (одна node/edge на строку, grep-friendly, streamable)
+- `<mb>/codebase/god-nodes.md` — топ-20 узлов по degree (in + out), с file:line + kind
+- `<mb>/codebase/.cache/<hash>.json` — per-file SHA256 → parsed entities
+
+**Incremental:** если `sha256(file_content)` совпадает с cached — skip re-parse. На большом repo второй прогон моментальный.
+
+**Safety:**
+- `--dry-run` (default) — stdout summary (nodes/edges/reparsed/cached), 0 file changes
+- `--apply` — пишет все outputs + обновляет cache
+- Broken syntax → skip с warning, батч продолжается
+- `.venv/`, `__pycache__/`, `.*/` — исключены
+
+Выполни напрямую:
+
+```bash
+python3 ~/.claude/skills/memory-bank/scripts/mb-codegraph.py $ARGS_AFTER_GRAPH
+```
+
+**Типичный сценарий:**
+```
+User: /mb graph
+→ dry-run output:
+  nodes=52
+  edges=388
+  reparsed=3
+  cached=0
+  mode=dry-run
+
+User: /mb graph --apply
+→ nodes=52 edges=388 reparsed=3 cached=0 mode=apply
+  [writes codebase/graph.json + god-nodes.md + .cache/]
+
+# Изменил 1 файл, перезапустил:
+User: /mb graph --apply
+→ reparsed=1 cached=2 — один файл re-parsed, два из кеша
+```
+
+**Пример top god-nodes (dogfood на этом repo):**
+```
+| # | Name          | Kind     | File:Line            | Degree |
+|---|---------------|----------|----------------------|--------|
+| 1 | run_import    | function | mb-import.py:185     | 60     |
+| 2 | main          | function | mb-index-json.py:187 | 23     |
+| 3 | _atomic_write | function | mb-import.py:157     | 22     |
+```
+
+**Интеграция с `mb-codebase-mapper`:** агент использует `graph.json` как источник для разделов CONVENTIONS и CONCERNS вместо grep (backlog для v2.3).
+
+**Ограничения v1 (Python-only):**
+- Tree-sitter adapter для Go/Rust/JS/TS/Java/etc — Stage 6.5 opt-in extras в backlog. Проект с не-Python кодом получит только `.py` покрытие
+- Type inference отсутствует — edges работают на именах (call к `foo()` не различает модули с одноимённой функцией). Разрешение имён через imports — TODO
+- `god-nodes.md` wiki/ per-node documentation — отложено (YAGNI до реального запроса)
 
 ### init [--minimal|--full]
 
