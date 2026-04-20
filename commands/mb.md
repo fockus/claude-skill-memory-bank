@@ -36,6 +36,7 @@ allowed-tools: [Bash, Read, Write, Edit, Task, Glob, Grep]
 | `tags [--apply] [--auto-merge]` | Normalize frontmatter tags: detect synonyms via Levenshtein ≤2 vs closed vocabulary, propose merges. `--auto-merge` применяет только distance ≤1. Vocabulary в `.memory-bank/tags-vocabulary.md` (fallback — `references/tags-vocabulary.md`). `mb-index-json.py` авто-kebab-case |
 | `init [--minimal\|--full]` | Инициализировать Memory Bank. `--full` (default): + RULES copy + CLAUDE.md с автодетектом стека. `--minimal`: только структура |
 | `help [subcommand]` | Справка. Без аргумента — список всех подкоманд. С аргументом — детали конкретной (`/mb help compact`, `/mb help tags`, ...) |
+| `deps [--install-hints]` | Проверка зависимостей (required: python3/jq/git; optional: rg/shellcheck/tree-sitter/PyYAML). `--install-hints` — OS-specific install commands |
 | (нераспознанное) | Поиск по `$ARGUMENTS` |
 
 ---
@@ -448,6 +449,57 @@ User: /mb graph --apply
 - Tree-sitter extractor упрощён (MVP): не все edge cases языка — если увидишь пропущенный узел, open issue
 - `god-nodes.md` wiki/ per-node documentation — отложено (YAGNI до реального запроса)
 - C/C++/Ruby/PHP/Kotlin/Swift — не поддержаны (добавить по требованию через новую запись в `_TS_LANG_CONFIG`)
+
+### deps [--install-hints]
+
+Проверка всех required + optional зависимостей skill'а. Выполняется автоматически перед `install.sh` (step 0), доступна standalone через `/mb deps`.
+
+**Required (exit 1 если отсутствуют):**
+- `bash` — runtime для shell-скриптов
+- `python3` — для `mb-index-json.py`, `mb-import.py`, `mb-codegraph.py`, hooks
+- `jq` — для `session-end-autosave.sh`, `block-dangerous.sh`, `file-change-log.sh` (JSON parse из hook stdin)
+- `git` — для `mb-upgrade.sh`, version tracking
+
+**Optional (warning, не blocker):**
+- `rg` (ripgrep) — ускоряет `mb-search`, fallback на grep
+- `shellcheck` — только для dev (CI lint)
+- `tree_sitter` (Python package) + grammars — multi-language `/mb graph` (Go/JS/TS/Rust/Java). Без него работает только Python
+- `PyYAML` — strict YAML в frontmatter, fallback на simple parser
+
+**Output format** (key=value, machine-parseable):
+```
+dep_bash=ok
+dep_python3=ok
+dep_jq=missing
+dep_git=ok
+...
+deps_required_missing=1
+deps_optional_missing=2
+```
+
+**Install hints** — `--install-hints` выводит OS-specific команды (brew/apt/dnf/pacman detected через `/etc/os-release`).
+
+Выполни напрямую:
+
+```bash
+bash ~/.claude/skills/memory-bank/scripts/mb-deps-check.sh $ARGS_AFTER_DEPS
+```
+
+**Типичный сценарий — первая установка:**
+```
+User: bash install.sh
+→ [0/7] Dependency check
+  ❌ dep_jq=missing
+  ═══ Required tools missing — install before proceeding ═══
+    jq: brew install jq
+  Exit 1
+
+User: brew install jq && bash install.sh
+→ [0/7] ✅ All required dependencies present.
+  [1/7] Rules → ...continues
+```
+
+**Override:** `MB_SKIP_DEPS_CHECK=1 bash install.sh` — пропускает preflight (CI / isolated envs где tools проверяются иначе).
 
 ### help [subcommand]
 

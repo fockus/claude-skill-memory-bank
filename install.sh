@@ -25,6 +25,18 @@ echo "  • 2 hooks (block-dangerous, file-change-log)"
 echo "  • Settings hooks (Setup, PreCompact, Stop)"
 echo ""
 
+# ═══ Step 0: Preflight dependency check ═══
+# Можно skip'ать через MB_SKIP_DEPS_CHECK=1 (CI / isolated envs).
+if [ "${MB_SKIP_DEPS_CHECK:-0}" != "1" ]; then
+  echo -e "${BLUE}[0/7] Dependency check${NC}"
+  if ! bash "$SKILL_DIR/scripts/mb-deps-check.sh" --install-hints; then
+    echo ""
+    echo -e "${RED}✗${NC} Required dependencies missing. Install them first and re-run install.sh."
+    echo "   (Override: MB_SKIP_DEPS_CHECK=1 bash install.sh)"
+    exit 1
+  fi
+fi
+
 backup_if_exists() {
   if [ -f "$1" ] && [ ! -L "$1" ]; then
     local backup="$1.pre-mb-backup.$(date +%s)"
