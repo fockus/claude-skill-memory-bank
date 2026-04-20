@@ -85,6 +85,10 @@
         {
           "type": "command",
           "command": "~/.claude/hooks/session-end-autosave.sh # [memory-bank-skill]"
+        },
+        {
+          "type": "command",
+          "command": "~/.claude/hooks/mb-compact-reminder.sh # [memory-bank-skill]"
         }
       ]
     }

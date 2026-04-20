@@ -153,6 +153,20 @@ SessionEnd hook автоматически дописывает placeholder-entr
 
 ---
 
+## Weekly compact reminder (since v2.2.1)
+
+SessionEnd hook `hooks/mb-compact-reminder.sh` напоминает запустить `/mb compact` раз в неделю — **только если пользователь хотя бы раз явно выполнил `/mb compact --apply`** (создался `.memory-bank/.last-compact`). Opt-in by design — для новых установок reminder молчит.
+
+**Логика:**
+- `.last-compact` отсутствует → silent (пользователь не подписан)
+- `.last-compact` <7 дней → silent
+- `.last-compact` ≥7 дней + `mb-compact.sh --dry-run` показывает `candidates > 0` → reminder на stderr с подсказкой `/mb compact`
+- `.last-compact` ≥7 дней + `candidates=0` → silent (нечего сжимать)
+
+**Opt-out:** `export MB_COMPACT_REMIND=off`. Read-only — никогда не меняет файлы.
+
+---
+
 ## Ссылки
 
 - Metadata protocol + `index.json` + 8 ключевых правил: `references/metadata.md`
